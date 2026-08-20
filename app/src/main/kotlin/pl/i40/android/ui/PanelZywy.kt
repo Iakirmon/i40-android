@@ -1,7 +1,8 @@
 package pl.i40.android.ui
 
-/** Panele ekranu żywego — kolejność z warstwy diagnostycznej, Stan dojdzie w S1. */
+/** Panele ekranu żywego — Stan pierwszy, potem pięć z warstwy diagnostycznej. */
 enum class PanelZywy(val etykieta: String) {
+    Stan("STAN"),
     Podstawowy("PODSTAWOWY"),
     Mieszanka("MIESZANKA"),
     WtryskGdi("WTRYSK GDI"),
@@ -9,9 +10,9 @@ enum class PanelZywy(val etykieta: String) {
     Powietrze("POWIETRZE"),
 }
 
-/** Pięć kropek: piąta to miejsce na panel Powietrze (K4). */
+/** Sześć kropek: pierwsza to panel Stan (S2). */
 object WskaznikPaneli {
-    const val LICZBA_KROPEK = 5
+    const val LICZBA_KROPEK = 6
 
     fun tekst(aktywny: PanelZywy): String {
         val kropki = (0 until LICZBA_KROPEK).joinToString(" ") { i ->

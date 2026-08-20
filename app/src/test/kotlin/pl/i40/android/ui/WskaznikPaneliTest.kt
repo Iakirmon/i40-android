@@ -6,15 +6,15 @@ import org.junit.jupiter.api.Test
 
 class WskaznikPaneliTest {
     @Test
-    fun piecKropekMiejsceNaPowietrze() {
+    fun szescKropekStanPierwszy() {
+        val s = WskaznikPaneli.tekst(PanelZywy.Stan)
+        assertEquals(6, s.count { it == '●' || it == '○' })
+        assertTrue(s.startsWith("● ○ ○ ○ ○ ○"))
+        assertTrue(s.contains("STAN"))
         val m = WskaznikPaneli.tekst(PanelZywy.Mieszanka)
-        assertEquals(5, m.count { it == '●' || it == '○' })
-        assertTrue(m.startsWith("○ ● ○ ○ ○"))
-        assertTrue(m.contains("MIESZANKA"))
-        val t = WskaznikPaneli.tekst(PanelZywy.Termika)
-        assertTrue(t.startsWith("○ ○ ○ ● ○"))
+        assertTrue(m.startsWith("○ ○ ● ○ ○ ○"))
         val p = WskaznikPaneli.tekst(PanelZywy.Powietrze)
-        assertTrue(p.startsWith("○ ○ ○ ○ ●"))
+        assertTrue(p.startsWith("○ ○ ○ ○ ○ ●"))
         assertTrue(p.contains("POWIETRZE"))
     }
 }

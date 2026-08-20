@@ -37,7 +37,7 @@ fun LiveScreen(
     punkty: List<pl.i40.android.storage.PunktOdniesienia> = emptyList()
 ) {
     val kolory = LocalI40Kolory.current
-    var panel by remember { mutableStateOf(PanelZywy.Podstawowy) }
+    var panel by remember { mutableStateOf(PanelZywy.Stan) }
     Column(modifier.fillMaxSize().background(kolory.tlo)) {
         Row(Modifier.fillMaxWidth()) {
             for (pid in FormatKafla.KAFLI_DOMYSLNE) {
@@ -80,6 +80,7 @@ fun LiveScreen(
         ) {
             Column(Modifier.fillMaxSize()) {
                 when (panel) {
+                    PanelZywy.Stan -> PanelStan(migawka = migawka, modifier = Modifier.fillMaxSize())
                     PanelZywy.Podstawowy -> {
                         val wierszStanu = if (migawka.jalowyRozgrzany) {
                             "● JAŁOWY ROZGRZANY — punkt odniesienia"
