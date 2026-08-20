@@ -1,6 +1,7 @@
 package pl.i40.android.ui
 
 import pl.i40.android.acquisition.OilTempEstimator
+import pl.i40.android.obd.FuelSystemStatus
 import pl.i40.android.obd.PidCatalog
 import pl.i40.android.rules.PasmaOdniesienia
 
@@ -49,6 +50,17 @@ object FormatKafla {
     }
 
     fun wartosc(pid: Int, value: Double?): String = FormatPomiaru.liczba(value, cyfryPoPrzecinku(pid), jednostka(pid))
+
+    /**
+     * Czwarty kafel: liczba tylko po potwierdzeniu pętli zamkniętej (`2` albo `16`).
+     * Brak `0103` i wartość spoza enumeracji dają `— ○`, nie ostatnią liczbę.
+     */
+    fun wartoscKorektyDlugiej(ltft: Double?, status0103: Int?): String {
+        if (!FuelSystemStatus.korektyWazne(status0103)) {
+            return "${FormatPomiaru.NIEDOSTEPNE} ○"
+        }
+        return wartosc(0x07, ltft)
+    }
 
     fun olejTekst(celsius: Double?): String {
         val number = FormatPomiaru.liczba(celsius, 0, "°C")

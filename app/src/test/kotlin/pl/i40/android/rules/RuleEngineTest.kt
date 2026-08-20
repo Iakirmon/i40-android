@@ -136,8 +136,25 @@ class RuleEngineTest {
     fun noweRegulyNieMajaWagiUsterka() {
         val gdi = insight(gdiWejscie(cisnienie = 24.0), "GDI-1")
         val kat = insight(katWejscie(temp = 212.0), "KAT-1")
+        val mix = insight(RuleInput(statusUkladuPaliwowego = 8), "MIX-1")
         assertEquals(WagaWniosku.Uwaga, gdi.waga)
         assertEquals(WagaWniosku.Uwaga, kat.waga)
+        assertEquals(WagaWniosku.Uwaga, mix.waga)
+    }
+
+    @Test
+    fun mix1Odpaladla8i16NieDlaOtwartejNormalnej() {
+        val osiem = insight(RuleInput(statusUkladuPaliwowego = 8), "MIX-1")
+        val szesnascie = insight(RuleInput(statusUkladuPaliwowego = 16), "MIX-1")
+        assertEquals(WagaWniosku.Uwaga, osiem.waga)
+        assertTrue(osiem.szczegol.contains("otwartej"))
+        assertTrue(szesnascie.szczegol.contains("zamkniętej"))
+        assertFalse(osiem.szczegol.contains("sonda") && osiem.szczegol.contains("zepsute"))
+        assertFalse(ids(RuleInput(statusUkladuPaliwowego = 1)).contains("MIX-1"))
+        assertFalse(ids(RuleInput(statusUkladuPaliwowego = 4)).contains("MIX-1"))
+        assertFalse(ids(RuleInput(statusUkladuPaliwowego = 2)).contains("MIX-1"))
+        assertFalse(ids(RuleInput(statusUkladuPaliwowego = 0)).contains("MIX-1"))
+        assertFalse(ids(RuleInput(statusUkladuPaliwowego = null)).contains("MIX-1"))
     }
 
     @Test

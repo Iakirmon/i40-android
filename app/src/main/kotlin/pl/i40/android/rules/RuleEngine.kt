@@ -32,7 +32,9 @@ data class RuleInput(
     /** PID `010D` */
     val predkoscKmh: Double? = null,
     /** PID `013C` */
-    val temperaturaKatalizatoraC: Double? = null
+    val temperaturaKatalizatoraC: Double? = null,
+    /** PID `0103` bajt A — status układu paliwowego, nie tryb 03. */
+    val statusUkladuPaliwowego: Int? = null
 ) {
     val runtimeMinutes: Double?
         get() = runtimeSeconds?.div(60.0)
@@ -263,6 +265,26 @@ object RuleEngine {
                         "${PasmaOdniesienia.KATALIZATOR_ZAPLON_C.toInt()} °C konwersja praktycznie " +
                         "nie zachodzi. Możliwa niesprawność katalizatora albo czujnika temperatury.",
                 ),
+            )
+        }
+
+        val status = input.statusUkladuPaliwowego
+        if (status == 8 || status == 16) {
+            val szczegol = if (status == 8) {
+                "Układ paliwowy pracuje w pętli otwartej z powodu awarii — tak raportuje sterownik. " +
+                    "Korekty paliwa są w tym stanie nieaktywne, więc silnik jedzie z mapy bazowej " +
+                    "bez korygowania składu mieszanki."
+            } else {
+                "Układ pracuje w pętli zamkniętej, ale sterownik zgłasza usterkę sprzężenia zwrotnego " +
+                    "z sondy tlenu."
+            }
+            out.add(
+                Wniosek(
+                    ruleId = "MIX-1",
+                    waga = WagaWniosku.Uwaga,
+                    tytul = "Sterownik zgłasza awarię układu regulacji mieszanki",
+                    szczegol = szczegol
+                )
             )
         }
 

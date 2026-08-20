@@ -64,4 +64,22 @@ class LiveTileFormatTest {
         assertTrue(FormatKafla.pasmoKafla(0x07).contains("10"))
         assertEquals(FormatKafla.PASMO_KOREKTY_DLUGIEJ, PasmaOdniesienia.korektaDluga)
     }
+
+    @Test
+    fun czwartyKafelMilczyBezPotwierdzeniaPetliZamknietej() {
+        val liczba = FormatKafla.wartosc(0x07, 3.9)
+        assertEquals(liczba, FormatKafla.wartoscKorektyDlugiej(3.9, 2))
+        assertEquals(liczba, FormatKafla.wartoscKorektyDlugiej(3.9, 16))
+        val kreska = "${FormatPomiaru.NIEDOSTEPNE} ○"
+        assertEquals(kreska, FormatKafla.wartoscKorektyDlugiej(3.9, 1))
+        assertEquals(kreska, FormatKafla.wartoscKorektyDlugiej(3.9, 4))
+        assertEquals(kreska, FormatKafla.wartoscKorektyDlugiej(3.9, 8))
+        assertEquals(kreska, FormatKafla.wartoscKorektyDlugiej(3.9, 0))
+        assertEquals(kreska, FormatKafla.wartoscKorektyDlugiej(3.9, null))
+        assertEquals(kreska, FormatKafla.wartoscKorektyDlugiej(3.9, 3))
+        assertTrue(FormatKafla.pasmoKafla(0x07).contains("10"))
+        assertFalse(0x2F in SampleStream.DEFAULT_SLOW_PIDS)
+        assertFalse(0x2F in SampleStream.DEFAULT_FAST_PIDS)
+        assertFalse(0x2F in SampleStream.DEFAULT_MEDIUM_PIDS)
+    }
 }

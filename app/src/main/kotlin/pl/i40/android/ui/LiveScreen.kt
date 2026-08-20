@@ -127,6 +127,8 @@ private fun Kafel(pid: Int, migawka: MigawkaZywego, modifier: Modifier) {
     val olej = pid == FormatKafla.PID_OLEJ_MODEL
     val wartosc = if (olej) {
         FormatKafla.olejTekst(migawka.olejC)
+    } else if (pid == 0x07) {
+        FormatKafla.wartoscKorektyDlugiej(migawka.wartosci[pid], migawka.wartosci[0x03]?.toInt())
     } else {
         FormatKafla.wartosc(pid, migawka.wartosci[pid])
     }

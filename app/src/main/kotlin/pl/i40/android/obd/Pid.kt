@@ -51,6 +51,7 @@ object PidDecode {
         lambda = (256 * d[0] + d[1]).toDouble() / 32768,
         voltage = (256 * d[2] + d[3]).toDouble() / 8192
     )
+    fun fuelSystem(d: List<Int>) = DecodedPid.Code(d[0])
     fun raw(d: List<Int>) = DecodedPid.Bytes(d)
     fun code(d: List<Int>) = DecodedPid.Code(d[0])
 }

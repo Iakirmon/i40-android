@@ -4,7 +4,7 @@ package pl.i40.android.obd
 object PidCatalog {
     val all: List<PidDefinition> = listOf(
         wpis(0x01, "Stan monitorów", 4, "", decode = PidDecode::raw),
-        wpis(0x03, "Status układu paliwowego", 2, "", decode = PidDecode::raw),
+        wpis(0x03, "Status układu paliwowego", 2, "", decode = PidDecode::fuelSystem),
         wpis(0x04, "Obliczone obciążenie silnika", 1, "%", 0.0..100.0, PidDecode::percent),
         wpis(0x05, "Temperatura płynu chłodzącego", 1, "°C", -40.0..150.0, PidDecode::temp),
         wpis(0x06, "Korekta krótkoterminowa, bank 1", 1, "%", -100.0..100.0, PidDecode::trim),

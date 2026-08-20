@@ -30,10 +30,14 @@ class StanZywy {
         var runtime: Double? = null
         for (reading in tick.readings) {
             if (reading.pid == PID_OLEJ) continue
-            val n = reading.decoded as? DecodedPid.Numeric ?: continue
-            najnowsze[reading.pid] = n.value
-            ring.append(reading.pid, tick.time, n.value)
-            if (reading.pid == 0x1F) runtime = n.value
+            val n = when (val d = reading.decoded) {
+                is DecodedPid.Numeric -> d.value
+                is DecodedPid.Code -> d.value.toDouble()
+                else -> continue
+            }
+            najnowsze[reading.pid] = n
+            ring.append(reading.pid, tick.time, n)
+            if (reading.pid == 0x1F) runtime = n
         }
         uaktualnijOlej(tick.time, runtime)
         olej.estimateC?.let { ring.append(PID_OLEJ, tick.time, it) }

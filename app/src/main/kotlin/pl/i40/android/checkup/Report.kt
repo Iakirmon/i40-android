@@ -99,7 +99,8 @@ data class Raport(
                 oilCelsius = numeric(0x5C),
                 cisnienieSzynyBar = numeric(0x23)?.let { PasmaOdniesienia.kpaNaBar(it) },
                 predkoscKmh = numeric(0x0D),
-                temperaturaKatalizatoraC = numeric(0x3C)
+                temperaturaKatalizatoraC = numeric(0x3C),
+                statusUkladuPaliwowego = numeric(0x03)?.toInt()
             )
         }
 
