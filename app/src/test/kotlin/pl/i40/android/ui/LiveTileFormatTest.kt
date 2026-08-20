@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import pl.i40.android.acquisition.OilTempEstimator
 import pl.i40.android.acquisition.SampleStream
+import pl.i40.android.rules.PasmaOdniesienia
 
 class LiveTileFormatTest {
     @Test
@@ -50,7 +51,16 @@ class LiveTileFormatTest {
         assertTrue(text.contains("85"))
         val podpis = FormatKafla.olejPodpis(OilTempEstimator.Pewnosc.Srednia)
         assertTrue(podpis.contains("szacunek"))
-        assertTrue(podpis.contains("0…150") || podpis.contains("0...150"))
+        assertTrue(podpis.contains("≥ 90") || podpis.contains(">= 90"))
         assertTrue(podpis.contains("średnia"))
+    }
+
+    @Test
+    fun trzeciWierszKafliZPasmaOdniesienia() {
+        assertEquals("≥ 90", FormatKafla.pasmoKafla(0x5C))
+        assertEquals("70–105", FormatKafla.pasmoKafla(0x05))
+        assertTrue(FormatKafla.pasmoKafla(0x42).contains("13"))
+        assertTrue(FormatKafla.pasmoKafla(0x07).contains("10"))
+        assertEquals(FormatKafla.PASMO_KOREKTY_DLUGIEJ, PasmaOdniesienia.korektaDluga)
     }
 }

@@ -27,7 +27,9 @@ fun RollingChart(
     pid: Int,
     samples: List<RingSample>,
     modifier: Modifier = Modifier,
-    dziedzinaCzasu: ClosedFloatingPointRange<Double>? = null
+    dziedzinaCzasu: ClosedFloatingPointRange<Double>? = null,
+    tytul: String? = null,
+    linieOdniesienia: List<Double> = emptyList()
 ) {
     val kolory = LocalI40Kolory.current
     val zakres = OsY.zakres(pid)
@@ -38,7 +40,7 @@ fun RollingChart(
     Column(modifier.fillMaxWidth().height(96.dp).padding(horizontal = 8.dp, vertical = 4.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             BasicText(
-                text = FormatKafla.krotkaEtykieta(pid),
+                text = tytul ?: FormatKafla.krotkaEtykieta(pid),
                 style = TextStyle(color = kolory.tekstDrugi, fontSize = 12.sp)
             )
             Box(Modifier.weight(1f))
@@ -56,6 +58,16 @@ fun RollingChart(
             val h = size.height
             val span = (domena.endInclusive - domena.start).toFloat().coerceAtLeast(0.001f)
             val ySpan = (zakres.endInclusive - zakres.start).toFloat().coerceAtLeast(0.001f)
+            for (linia in linieOdniesienia) {
+                val yn = ((linia - zakres.start) / ySpan).toFloat()
+                val y = (1f - yn.coerceIn(0f, 1f)) * h
+                drawLine(
+                    color = kolory.tekstWyciszony,
+                    start = Offset(0f, y),
+                    end = Offset(w, y),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
             if (samples.size >= 2) {
                 val path = Path()
                 var started = false

@@ -33,6 +33,7 @@ object FormatKafla {
 
     fun cyfryPoPrzecinku(pid: Int): Int = when (pid) {
         0x42, 0x06, 0x07, 0x0E -> 1
+        0x44 -> 3
         else -> 0
     }
 
@@ -55,14 +56,26 @@ object FormatKafla {
     }
 
     fun olejPodpis(pewnosc: OilTempEstimator.Pewnosc): String =
-        "szacunek · ${OsY.etykietaZakresu(PID_OLEJ_MODEL)} · ${pewnosc.label}"
+        "szacunek · ${pasmoKafla(PID_OLEJ_MODEL)} · ${pewnosc.label}"
 
-    fun podpisZakresu(pid: Int): String = when (pid) {
-        0x07 -> {
-            val p = PASMO_KOREKTY_DLUGIEJ
-            "${formatujKraniec(p.start, pid)}…${formatujKraniec(p.endInclusive, pid)}"
+    fun podpisZakresu(pid: Int): String = pasmoKafla(pid)
+
+    /** Trzeci wiersz kafla — pasmo z [PasmaOdniesienia], nigdy oś wykresu. */
+    fun pasmoKafla(pid: Int): String = when (pid) {
+        PID_OLEJ_MODEL -> "≥ ${PasmaOdniesienia.OLEJ_MIN_C.toInt()}"
+        0x05 -> {
+            val p = PasmaOdniesienia.plyn
+            "${p.start.toInt()}–${p.endInclusive.toInt()}"
         }
-        else -> OsY.etykietaZakresu(pid)
+        0x42 -> {
+            val p = PasmaOdniesienia.napieciePraca
+            "${formatujKraniec(p.start, 0x42)}–${formatujKraniec(p.endInclusive, 0x42)}"
+        }
+        0x07 -> {
+            val p = PasmaOdniesienia.korektaDluga
+            "−${kotlin.math.abs(p.start).toInt()} – +${p.endInclusive.toInt()}"
+        }
+        else -> FormatPomiaru.NIEDOSTEPNE
     }
 
     private fun formatujKraniec(value: Double, pid: Int): String {

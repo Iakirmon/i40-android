@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
@@ -25,18 +29,39 @@ import pl.i40.android.service.StanPrzejazdu
 @Composable
 fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = Modifier) {
     val kolory = LocalI40Kolory.current
+    var mieszanka by remember { mutableStateOf(false) }
     Column(modifier.fillMaxSize().background(kolory.tlo)) {
         Row(Modifier.fillMaxWidth()) {
             for (pid in FormatKafla.KAFLI_DOMYSLNE) {
                 Kafel(pid = pid, migawka = migawka, modifier = Modifier.weight(1f))
             }
         }
-        for (pid in FormatKaflaWykresow.PIDY_WYKRESOW) {
-            RollingChart(
-                pid = pid,
-                samples = migawka.serie[pid].orEmpty(),
+        BasicText(
+            text = if (mieszanka) "● MIESZANKA" else "○ MIESZANKA",
+            modifier = Modifier
+                .clickable { mieszanka = !mieszanka }
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            style = TextStyle(color = kolory.akcent, fontSize = 12.sp)
+        )
+        if (mieszanka) {
+            PanelMieszanka(
+                stft = migawka.wartosci[0x06],
+                ltft = migawka.wartosci[0x07],
+                lambda = migawka.wartosci[0x44],
+                stftSamples = migawka.serie[0x06].orEmpty(),
+                ltftSamples = migawka.serie[0x07].orEmpty(),
+                pozaPasmemS = null,
+                sesjaS = migawka.elapsedSeconds,
                 modifier = Modifier.weight(1f)
             )
+        } else {
+            for (pid in FormatKaflaWykresow.PIDY_WYKRESOW) {
+                RollingChart(
+                    pid = pid,
+                    samples = migawka.serie[pid].orEmpty(),
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
         PasekStanu(migawka = migawka, onStop = onStop)
     }
