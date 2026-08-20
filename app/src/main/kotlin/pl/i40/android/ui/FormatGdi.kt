@@ -2,6 +2,7 @@ package pl.i40.android.ui
 
 import pl.i40.android.acquisition.RingSample
 import pl.i40.android.rules.PasmaOdniesienia
+import pl.i40.android.storage.PunktOdniesienia
 
 /**
  * Panel Wtrysk GDI. Oś 0–240 bar z §8.6 (241 bar z pasma obciążeniowego, zaokrąglone w dół).
@@ -50,6 +51,21 @@ object FormatGdi {
     }
 
     fun cisnienieZadane(): String = "Ciśnienie zadane: auto nie oddaje (PID poza OBD-II)"
+
+    /**
+     * Wiersz odniesienia GDI — sekcja 11. Poza stanem znika, nie pokazuje starej wartości.
+     */
+    fun wierszJalowy(jalowy: Boolean, terazKpa: Double?, punkty: List<PunktOdniesienia>): String? {
+        if (!jalowy) return null
+        val terazBar = terazKpa?.let { PasmaOdniesienia.kpaNaBar(it) }
+        val terazTekst = FormatPomiaru.liczba(terazBar, 1, "bar")
+        val wBarach = punkty.mapNotNull { p ->
+            val kpa = p.odczyty[PID_SZYNA] ?: return@mapNotNull null
+            p.copy(odczyty = mapOf(PID_SZYNA to PasmaOdniesienia.kpaNaBar(kpa)))
+        }
+        val pop = FormatOdniesienia.wiersz(PID_SZYNA, wBarach)
+        return "Na jałowym rozgrzanym:        $terazTekst\n  $pop"
+    }
 
     private fun najblizsza(samples: List<RingSample>, t: Double): Double? {
         if (samples.isEmpty()) return null

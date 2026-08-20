@@ -17,7 +17,10 @@ fun PanelWtryskGdi(
     szynaKpa: List<RingSample>,
     obciazenie: List<RingSample>,
     przepustnica: List<RingSample>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    jalowy: Boolean = false,
+    terazKpa: Double? = null,
+    punkty: List<pl.i40.android.storage.PunktOdniesienia> = emptyList()
 ) {
     val kolory = LocalI40Kolory.current
     val (maxBar, load) = FormatGdi.szczytSesji(szynaKpa, obciazenie)
@@ -55,5 +58,13 @@ fun PanelWtryskGdi(
             modifier = Modifier.padding(8.dp),
             style = TextStyle(color = kolory.tekstWyciszony, fontSize = 11.sp)
         )
+        val jalowyWiersz = FormatGdi.wierszJalowy(jalowy, terazKpa, punkty)
+        if (jalowyWiersz != null) {
+            BasicText(
+                text = jalowyWiersz,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+            )
+        }
     }
 }

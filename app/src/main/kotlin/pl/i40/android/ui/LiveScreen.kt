@@ -30,7 +30,12 @@ import pl.i40.android.service.MigawkaZywego
 import pl.i40.android.service.StanPrzejazdu
 
 @Composable
-fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = Modifier) {
+fun LiveScreen(
+    migawka: MigawkaZywego,
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier,
+    punkty: List<pl.i40.android.storage.PunktOdniesienia> = emptyList()
+) {
     val kolory = LocalI40Kolory.current
     var panel by remember { mutableStateOf(PanelZywy.Podstawowy) }
     Column(modifier.fillMaxSize().background(kolory.tlo)) {
@@ -76,12 +81,44 @@ fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = 
             Column(Modifier.fillMaxSize()) {
                 when (panel) {
                     PanelZywy.Podstawowy -> {
-                        for (pid in FormatKaflaWykresow.PIDY_WYKRESOW) {
-                            RollingChart(
-                                pid = pid,
-                                samples = migawka.serie[pid].orEmpty(),
-                                modifier = Modifier.weight(1f)
-                            )
+                        val wierszStanu = if (migawka.jalowyRozgrzany) {
+                            "● JAŁOWY ROZGRZANY — punkt odniesienia"
+                        } else if (migawka.wRuchu) {
+                            "○ w ruchu — punkt odniesienia niedostępny"
+                        } else {
+                            "○ punkt odniesienia niedostępny"
+                        }
+                        BasicText(
+                            text = wierszStanu,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+                        )
+                        if (migawka.trybPorownania) {
+                            for (pid in FormatKaflaWykresow.PIDY_WYKRESOW) {
+                                val teraz = FormatPomiaru.liczba(
+                                    migawka.wartosci[pid],
+                                    FormatKafla.cyfryPoPrzecinku(pid),
+                                    FormatKafla.jednostka(pid)
+                                )
+                                BasicText(
+                                    text = "${FormatKafla.krotkaEtykieta(pid)}  $teraz",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = TextStyle(color = kolory.tekst, fontSize = 18.sp)
+                                )
+                                BasicText(
+                                    text = FormatOdniesienia.wiersz(pid, punkty),
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+                                )
+                            }
+                        } else {
+                            for (pid in FormatKaflaWykresow.PIDY_WYKRESOW) {
+                                RollingChart(
+                                    pid = pid,
+                                    samples = migawka.serie[pid].orEmpty(),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                     PanelZywy.Mieszanka -> PanelMieszanka(
@@ -102,6 +139,9 @@ fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = 
                         szynaKpa = migawka.serie[0x23].orEmpty(),
                         obciazenie = migawka.serie[0x43].orEmpty(),
                         przepustnica = migawka.serie[0x11].orEmpty(),
+                        jalowy = migawka.jalowyRozgrzany,
+                        terazKpa = migawka.wartosci[0x23],
+                        punkty = punkty,
                         modifier = Modifier.weight(1f)
                     )
                     PanelZywy.Termika -> PanelTermika(

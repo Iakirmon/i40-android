@@ -40,13 +40,19 @@ class MainActivity : ComponentActivity() {
             val svc = usluga
             var migawka by remember { mutableStateOf(MigawkaZywego()) }
             var przejazdy by remember { mutableStateOf(listOf<Przejazd>()) }
+            var punkty by remember { mutableStateOf(listOf<pl.i40.android.storage.PunktOdniesienia>()) }
             LaunchedEffect(svc) {
                 if (svc == null) {
                     migawka = MigawkaZywego()
                     przejazdy = emptyList()
+                    punkty = emptyList()
                 } else {
                     przejazdy = svc.listaPrzejazdow()
-                    svc.migawka.collect { migawka = it }
+                    punkty = svc.listaPunktow()
+                    svc.migawka.collect {
+                        migawka = it
+                        punkty = svc.listaPunktow()
+                    }
                 }
             }
             DisposableEffect(migawka.nagrywa) {
@@ -64,7 +70,8 @@ class MainActivity : ComponentActivity() {
                 onUsun = { id ->
                     svc?.usunPrzejazd(id)
                     przejazdy = svc?.listaPrzejazdow().orEmpty()
-                }
+                },
+                punkty = punkty
             )
         }
     }

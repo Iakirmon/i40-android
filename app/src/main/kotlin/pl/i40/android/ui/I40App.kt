@@ -33,7 +33,8 @@ fun I40App(
     migawka: MigawkaZywego,
     onStop: () -> Unit,
     przejazdy: List<Przejazd> = emptyList(),
-    onUsun: (String) -> Unit = {}
+    onUsun: (String) -> Unit = {},
+    punkty: List<pl.i40.android.storage.PunktOdniesienia> = emptyList()
 ) {
     val kolory = LocalI40Kolory.current
     var zakladka by remember { mutableStateOf(Zakladka.Nagrywanie) }
@@ -66,7 +67,12 @@ fun I40App(
             }
             when (zakladka) {
                 Zakladka.Przeglad -> CheckupScreen(wRuchu = migawka.wRuchu, modifier = Modifier.weight(1f))
-                Zakladka.Nagrywanie -> LiveScreen(migawka = migawka, onStop = onStop, modifier = Modifier.weight(1f))
+                Zakladka.Nagrywanie -> LiveScreen(
+                    migawka = migawka,
+                    onStop = onStop,
+                    punkty = punkty,
+                    modifier = Modifier.weight(1f)
+                )
                 Zakladka.Historia -> HistoryScreen(
                     przejazdy = przejazdy,
                     onUsun = onUsun,

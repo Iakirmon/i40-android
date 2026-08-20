@@ -31,6 +31,9 @@ class StanZywy {
 
     fun samples(pid: Int): List<RingSample> = ring.samples(pid)
 
+    private val wejsciePorownania = LicznikWejsciaPorownania()
+    private var trybPorownania: Boolean = false
+
     fun zastosuj(tick: SampleTick) {
         if (nagrywa) {
             val prev = ostatniCzasLicznika
@@ -52,6 +55,16 @@ class StanZywy {
         }
         uaktualnijOlej(tick.time, runtime)
         olej.estimateC?.let { ring.append(PID_OLEJ, tick.time, it) }
+        if (tick.kind == SampleTick.Kind.Hot) {
+            trybPorownania = wejsciePorownania.naCyklGoracy(
+                PasmaOdniesienia.jalowyRozgrzany(
+                    najnowsze[0x0C],
+                    najnowsze[0x0D],
+                    najnowsze[0x05],
+                    najnowsze[0x1F]
+                )
+            )
+        }
     }
 
     fun zastosuj(values: Map<Int, Double>, at: Double = 0.0) {
@@ -99,7 +112,14 @@ class StanZywy {
         hz = measuredHz,
         queries = totalQueries,
         czasPozaPasmemWPetliZamknietejSekundy = czasPozaPasmemWPetliZamknietejSekundy,
-        czasWPetliZamknietejSekundy = czasWPetliZamknietejSekundy
+        czasWPetliZamknietejSekundy = czasWPetliZamknietejSekundy,
+        jalowyRozgrzany = PasmaOdniesienia.jalowyRozgrzany(
+            najnowsze[0x0C],
+            najnowsze[0x0D],
+            najnowsze[0x05],
+            najnowsze[0x1F]
+        ),
+        trybPorownania = trybPorownania
     )
 
     private fun uaktualnijOlej(t: Double, runtimeSeconds: Double?) {
@@ -154,5 +174,7 @@ data class MigawkaZywego(
     val hz: Double = 0.0,
     val queries: Int = 0,
     val czasPozaPasmemWPetliZamknietejSekundy: Double? = null,
-    val czasWPetliZamknietejSekundy: Double? = null
+    val czasWPetliZamknietejSekundy: Double? = null,
+    val jalowyRozgrzany: Boolean = false,
+    val trybPorownania: Boolean = false
 )

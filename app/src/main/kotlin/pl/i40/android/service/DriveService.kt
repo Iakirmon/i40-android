@@ -103,6 +103,11 @@ class DriveService : Service() {
 
     fun listaPrzejazdow(): List<pl.i40.android.storage.Przejazd> = DriveSessionDao(applicationContext).lista()
 
+    fun listaPunktow(): List<pl.i40.android.storage.PunktOdniesienia> {
+        val vin = vinSesji ?: return emptyList()
+        return DriveSessionDao(applicationContext).dlaVin(vin)
+    }
+
     fun usunPrzejazd(id: String) {
         DriveSessionDao(applicationContext).usun(id)
     }
