@@ -40,6 +40,7 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
     var status by remember { mutableStateOf("Na postoju — pełny przegląd na atrapie.") }
     var raport by remember { mutableStateOf<Raport?>(null) }
     var zmiany by remember { mutableStateOf<String?>(null) }
+    var naglowek by remember { mutableStateOf<String?>(null) }
     var punkt by remember { mutableStateOf<pl.i40.android.storage.PunktOdniesienia?>(null) }
     val slownik = remember {
         val json = context.resources.openRawResource(R.raw.dtc_dictionary).bufferedReader().use { it.readText() }
@@ -71,15 +72,24 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
                     val dao = DriveSessionDao(context)
                     val vin = wynik.pojazd.vin
                     val poprzedni = if (vin != null) dao.poprzedniPrzeglad(vin, id) else null
-                    zmiany = if (poprzedni != null) {
-                        val pop = RaportJson.decode(poprzedni.raportBlob)
+                    val poprzedniZapis = poprzedni?.let { wpis ->
+                        pl.i40.android.checkup.ZapisanyPrzeglad(
+                            id = wpis.id,
+                            kiedyMs = wpis.kiedyMs,
+                            vin = wpis.vin,
+                            stan = wpis.stan,
+                            raport = RaportJson.decode(wpis.raportBlob)
+                        )
+                    }
+                    zmiany = if (poprzedniZapis != null) {
                         FormatZmianPrzegladu.blok(
-                            PorownaniePrzegladow.porownaj(wynik, pop),
-                            poprzedni.kiedyMs
+                            PorownaniePrzegladow.porownaj(wynik, poprzedniZapis.raport),
+                            poprzedniZapis.kiedyMs
                         )
                     } else {
                         null
                     }
+                    naglowek = FormatNaglowkaPrzegladu.tekst(wynik, poprzedniZapis)
                     dao.zapiszPrzeglad(
                         id,
                         wynik.startMs,
@@ -104,6 +114,14 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
                 text = r.pojazd.vin ?: FormatPomiaru.NIEDOSTEPNE,
                 style = TextStyle(color = kolory.tekstDrugi, fontSize = 14.sp)
             )
+            val nag = naglowek
+            if (nag != null) {
+                BasicText(
+                    text = nag,
+                    modifier = Modifier.padding(top = 8.dp),
+                    style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
+                )
+            }
             val blokZmian = zmiany
             if (blokZmian != null) {
                 BasicText(
