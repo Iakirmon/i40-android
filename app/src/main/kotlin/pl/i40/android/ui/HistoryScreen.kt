@@ -1,22 +1,173 @@
 package pl.i40.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Calendar
+import java.util.Locale
+import kotlin.math.roundToInt
+import pl.i40.android.storage.Przejazd
+import pl.i40.android.storage.StatusPrzejazdu
 
-/** Siatka miesięczna powstaje w etapie 8. */
 @Composable
-fun HistoryScreen(modifier: Modifier = Modifier) {
+fun HistoryScreen(przejazdy: List<Przejazd>, onUsun: (String) -> Unit, modifier: Modifier = Modifier) {
     val kolory = LocalI40Kolory.current
-    Column(modifier.fillMaxSize().background(kolory.tlo).padding(16.dp)) {
-        BasicText("Historia", style = TextStyle(color = kolory.tekst, fontSize = 22.sp))
-        BasicText("Brak przejazdów", style = TextStyle(color = kolory.tekstDrugi, fontSize = 16.sp))
+    val cal = remember { SiatkaMiesiaca.kalendarzPolski() }
+    var miesiac by remember { mutableLongStateOf(SiatkaMiesiaca.poczatekMiesiaca(System.currentTimeMillis(), cal)) }
+    var dzien by remember { mutableStateOf<Long?>(null) }
+    var wybrany by remember { mutableStateOf<Przejazd?>(null) }
+
+    val sesja = wybrany
+    if (sesja != null) {
+        SessionDetailScreen(przejazd = sesja, onWstecz = { wybrany = null }, modifier = modifier)
+        return
+    }
+
+    val dniSesji = przejazdy.map { SiatkaMiesiaca.poczatekDnia(it.poczatekMs, cal) }.toSet()
+    val cells = SiatkaMiesiaca.komorki(miesiac, dniSesji, cal)
+    val dniTygodnia = SiatkaMiesiaca.skrotyDni(cal)
+    val listaDnia = dzien?.let { SiatkaMiesiaca.sesjeDnia(it, przejazdy, cal) }.orEmpty()
+
+    Column(modifier.fillMaxSize().background(kolory.tlo).padding(12.dp).verticalScroll(rememberScrollState())) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            BasicText(
+                "<",
+                modifier = Modifier.clickable {
+                    miesiac = SiatkaMiesiaca.przesunMiesiac(miesiac, -1, cal)
+                    dzien = null
+                }.padding(12.dp),
+                style = TextStyle(color = kolory.tekst, fontSize = 20.sp)
+            )
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                BasicText(
+                    SiatkaMiesiaca.tytulMiesiaca(miesiac, cal),
+                    style = TextStyle(color = kolory.tekst, fontSize = 18.sp)
+                )
+            }
+            BasicText(
+                ">",
+                modifier = Modifier.clickable {
+                    miesiac = SiatkaMiesiaca.przesunMiesiac(miesiac, 1, cal)
+                    dzien = null
+                }.padding(12.dp),
+                style = TextStyle(color = kolory.tekst, fontSize = 20.sp)
+            )
+        }
+        Row(Modifier.fillMaxWidth()) {
+            for (s in dniTygodnia) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    BasicText(s.uppercase(), style = TextStyle(color = kolory.tekstWyciszony, fontSize = 11.sp))
+                }
+            }
+        }
+        cells.chunked(7).forEach { row ->
+            Row(Modifier.fillMaxWidth()) {
+                for (cell in row) {
+                    Box(Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
+                        when (cell) {
+                            is KomorkaMiesiaca.Pusta -> {}
+                            is KomorkaMiesiaca.Dzien -> {
+                                val selected = dzien?.let { SiatkaMiesiaca.tenSamDzien(it, cell.dzienMs, cal) } == true
+                                val c2 = cal.clone() as Calendar
+                                c2.timeInMillis = cell.dzienMs
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.clickable {
+                                        dzien = if (selected) null else cell.dzienMs
+                                    }
+                                ) {
+                                    BasicText(
+                                        text = "${c2.get(Calendar.DAY_OF_MONTH)}",
+                                        style = TextStyle(
+                                            color = if (selected) kolory.tlo else kolory.tekst,
+                                            fontSize = 14.sp
+                                        )
+                                    )
+                                    Box(
+                                        Modifier.size(5.dp).background(if (cell.maSesje) kolory.akcent else kolory.tlo)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                repeat(7 - row.size) { Box(Modifier.weight(1f)) }
+            }
+        }
+        if (dzien == null) {
+            BasicText(
+                "Dotknij dnia z kropką, żeby zobaczyć przejazdy.",
+                style = TextStyle(color = kolory.tekstWyciszony, fontSize = 13.sp)
+            )
+        } else if (listaDnia.isEmpty()) {
+            BasicText("Brak przejazdów tego dnia.", style = TextStyle(color = kolory.tekstWyciszony, fontSize = 13.sp))
+        } else {
+            for (p in listaDnia) {
+                WierszPrzejazdu(p, cal, onClick = { wybrany = p }, onUsun = { onUsun(p.id) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun WierszPrzejazdu(p: Przejazd, cal: Calendar, onClick: () -> Unit, onUsun: () -> Unit) {
+    val kolory = LocalI40Kolory.current
+    var offset by remember { mutableFloatStateOf(0f) }
+    val c = cal.clone() as Calendar
+    c.timeInMillis = p.poczatekMs
+    val godz = String.format(Locale("pl", "PL"), "%02d:%02d", c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE))
+    val dur = p.podsumowanie.czasTrwaniaS.toInt()
+    val czas = "%d min".format(dur / 60)
+    val km = p.podsumowanie.dystansKm?.let { FormatPomiaru.liczba(it, 1, "km") } ?: FormatPomiaru.NIEDOSTEPNE
+    val przerwany = p.status == StatusPrzejazdu.Odzyskany
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .offset { IntOffset(offset.roundToInt(), 0) }
+            .pointerInput(p.id) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (offset < -80f) onUsun()
+                        offset = 0f
+                    },
+                    onHorizontalDrag = { _, d -> offset += d }
+                )
+            }
+            .clickable(onClick = onClick)
+            .padding(8.dp)
+            .background(kolory.powierzchnia)
+            .padding(8.dp)
+    ) {
+        BasicText(godz, style = TextStyle(color = kolory.tekst, fontSize = 16.sp))
+        BasicText(
+            "$czas · $km" + if (przerwany) " · przerwany" else "",
+            style = TextStyle(color = if (przerwany) kolory.uwaga else kolory.tekstDrugi, fontSize = 13.sp)
+        )
     }
 }

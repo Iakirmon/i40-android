@@ -81,6 +81,10 @@ class DriveSessionDao(context: Context) :
 
     override fun lista(): List<Przejazd> = listaGdzie("1 = 1", emptyArray())
 
+    override fun usun(id: String) {
+        writableDatabase.execSQL("DELETE FROM przejazd WHERE id = ?", arrayOf(id))
+    }
+
     private fun listaGdzie(where: String, args: Array<String>): List<Przejazd> {
         val out = mutableListOf<Przejazd>()
         readableDatabase.rawQuery(

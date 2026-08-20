@@ -92,6 +92,12 @@ class DriveService : Service() {
         publikuj()
     }
 
+    fun listaPrzejazdow(): List<pl.i40.android.storage.Przejazd> = DriveSessionDao(applicationContext).lista()
+
+    fun usunPrzejazd(id: String) {
+        DriveSessionDao(applicationContext).usun(id)
+    }
+
     fun wejdzWNagrywanie() {
         _stan.value = StanPrzejazdu.Nagrywa
         zywy.nagrywa = true

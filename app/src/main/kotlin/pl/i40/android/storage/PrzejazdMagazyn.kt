@@ -36,6 +36,7 @@ interface PrzejazdMagazyn {
     fun czytaj(id: String): Przejazd?
     fun listaWToku(): List<Przejazd>
     fun lista(): List<Przejazd>
+    fun usun(id: String)
 }
 
 /** Magazyn w pamięci — testy JVM bez SQLite. */
@@ -74,6 +75,10 @@ class PamiecPrzejazdow : PrzejazdMagazyn {
         wiersze.values.filter { it.status == StatusPrzejazdu.WToku }.map { it.skopiuj() }
 
     override fun lista(): List<Przejazd> = wiersze.values.map { it.skopiuj() }
+
+    override fun usun(id: String) {
+        wiersze.remove(id)
+    }
 
     private fun Przejazd.skopiuj() = copy(przebieg = przebieg.kopia())
 }

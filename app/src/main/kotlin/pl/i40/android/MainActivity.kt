@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import pl.i40.android.service.DriveService
 import pl.i40.android.service.MigawkaZywego
+import pl.i40.android.storage.Przejazd
 import pl.i40.android.ui.I40App
 
 class MainActivity : ComponentActivity() {
@@ -38,10 +39,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             val svc = usluga
             var migawka by remember { mutableStateOf(MigawkaZywego()) }
+            var przejazdy by remember { mutableStateOf(listOf<Przejazd>()) }
             LaunchedEffect(svc) {
                 if (svc == null) {
                     migawka = MigawkaZywego()
+                    przejazdy = emptyList()
                 } else {
+                    przejazdy = svc.listaPrzejazdow()
                     svc.migawka.collect { migawka = it }
                 }
             }
@@ -53,7 +57,15 @@ class MainActivity : ComponentActivity() {
                 }
                 onDispose { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
             }
-            I40App(migawka = migawka, onStop = { svc?.zatrzymajNaZadanie() })
+            I40App(
+                migawka = migawka,
+                onStop = { svc?.zatrzymajNaZadanie() },
+                przejazdy = przejazdy,
+                onUsun = { id ->
+                    svc?.usunPrzejazd(id)
+                    przejazdy = svc?.listaPrzejazdow().orEmpty()
+                }
+            )
         }
     }
 

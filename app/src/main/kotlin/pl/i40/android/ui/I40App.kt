@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import pl.i40.android.service.BlokadaPredkosci
 import pl.i40.android.service.InterakcjaZywa
 import pl.i40.android.service.MigawkaZywego
+import pl.i40.android.storage.Przejazd
 
 private enum class Zakladka(val tytul: String) {
     Przeglad("Przegląd"),
@@ -28,7 +29,12 @@ private enum class Zakladka(val tytul: String) {
 }
 
 @Composable
-fun I40App(migawka: MigawkaZywego, onStop: () -> Unit) {
+fun I40App(
+    migawka: MigawkaZywego,
+    onStop: () -> Unit,
+    przejazdy: List<Przejazd> = emptyList(),
+    onUsun: (String) -> Unit = {}
+) {
     val kolory = LocalI40Kolory.current
     var zakladka by remember { mutableStateOf(Zakladka.Nagrywanie) }
     val nawigacja = BlokadaPredkosci.pozwala(
@@ -61,7 +67,11 @@ fun I40App(migawka: MigawkaZywego, onStop: () -> Unit) {
             when (zakladka) {
                 Zakladka.Przeglad -> CheckupScreen(wRuchu = migawka.wRuchu, modifier = Modifier.weight(1f))
                 Zakladka.Nagrywanie -> LiveScreen(migawka = migawka, onStop = onStop, modifier = Modifier.weight(1f))
-                Zakladka.Historia -> HistoryScreen(modifier = Modifier.weight(1f))
+                Zakladka.Historia -> HistoryScreen(
+                    przejazdy = przejazdy,
+                    onUsun = onUsun,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }

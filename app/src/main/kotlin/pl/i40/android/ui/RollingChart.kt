@@ -23,10 +23,15 @@ import pl.i40.android.acquisition.RingSample
 
 /** Wykres przesuwny 60 s — sztywna oś Y, bieżąca wartość po prawej. */
 @Composable
-fun RollingChart(pid: Int, samples: List<RingSample>, modifier: Modifier = Modifier) {
+fun RollingChart(
+    pid: Int,
+    samples: List<RingSample>,
+    modifier: Modifier = Modifier,
+    dziedzinaCzasu: ClosedFloatingPointRange<Double>? = null
+) {
     val kolory = LocalI40Kolory.current
     val zakres = OsY.zakres(pid)
-    val domena = OsY.domenaCzasu(samples)
+    val domena = dziedzinaCzasu ?: OsY.domenaCzasu(samples)
     val biezaca = samples.lastOrNull()?.value
     val przyciecie = biezaca?.let { OsY.przytnij(it, pid) }
 
