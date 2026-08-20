@@ -1,6 +1,7 @@
 package pl.i40.android.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,17 +60,19 @@ fun RollingChart(
             BasicText(
                 text = wartoscNadpisana ?: FormatKafla.wartosc(pid, biezaca),
                 style = TextStyle(
-                    color = if (przyciecie?.przyciete == true) kolory.uwaga else kolory.tekst,
-                    fontSize = 16.sp,
+                    color = if (przyciecie?.przyciete == true) kolory.uwaga else kolory.odczyt,
+                    fontSize = SkalaI40.SLAD_WARTOSC_SP.sp,
                     fontFamily = I40CzcionkaWartosci
                 )
             )
         }
-        Canvas(Modifier.fillMaxSize()) {
+        Canvas(Modifier.fillMaxSize().background(kolory.pole)) {
             val w = size.width
             val h = size.height
             val span = (domena.endInclusive - domena.start).toFloat().coerceAtLeast(0.001f)
             val ySpan = (zakres.endInclusive - zakres.start).toFloat().coerceAtLeast(0.001f)
+            // 1. pole — tło Canvas
+            // 2. cieniowanie pod siatką
             for (pasmo in cienie) {
                 val x0 = ((pasmo.start - domena.start) / span).toFloat().coerceIn(0f, 1f) * w
                 val x1 = ((pasmo.end - domena.start) / span).toFloat().coerceIn(0f, 1f) * w
@@ -80,16 +83,18 @@ fun RollingChart(
                 }
                 drawRect(color = kolor, topLeft = Offset(x0, 0f), size = Size(x1 - x0, h))
             }
-            for (linia in linieOdniesienia) {
+            // 3. siatka — wyłącznie granice PasmaOdniesienia (brak → zero linii)
+            for (linia in SiatkaPasma.linie(pid)) {
                 val yn = ((linia - zakres.start) / ySpan).toFloat()
-                val y = (1f - yn.coerceIn(0f, 1f)) * h
+                val y = kotlin.math.round((1f - yn.coerceIn(0f, 1f)) * h)
                 drawLine(
-                    color = kolory.tekstWyciszony,
+                    color = kolory.siatka,
                     start = Offset(0f, y),
                     end = Offset(w, y),
-                    strokeWidth = 1.dp.toPx()
+                    strokeWidth = 1f
                 )
             }
+            // 4. ślad
             if (samples.size >= 2) {
                 val path = Path()
                 var started = false
@@ -106,7 +111,7 @@ fun RollingChart(
                         path.lineTo(x, y)
                     }
                 }
-                drawPath(path, color = kolory.akcent, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+                drawPath(path, color = kolory.odczyt, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
             }
             if (samplesDruga.size >= 2) {
                 val path = Path()
