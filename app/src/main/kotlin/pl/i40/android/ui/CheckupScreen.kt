@@ -4,8 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,7 +41,13 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
         SlownikDtc.zJson(json)
     }
 
-    Column(modifier.fillMaxSize().background(kolory.tlo).padding(16.dp)) {
+    Column(
+        modifier
+            .fillMaxSize()
+            .background(kolory.tlo)
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
         BasicText("Przegląd", style = TextStyle(color = kolory.tekst, fontSize = 22.sp))
         BasicText(status, style = TextStyle(color = kolory.tekstDrugi, fontSize = 14.sp))
         val mozna = !wRuchu
@@ -69,6 +78,9 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
                 text = r.pojazd.vin ?: FormatPomiaru.NIEDOSTEPNE,
                 style = TextStyle(color = kolory.tekstDrugi, fontSize = 14.sp)
             )
+            KartaGdi(FormatPrzegladu.kartaGdi(r))
+            KartaKatalizator(FormatPrzegladu.kartaKatalizator(r))
+            KartaOdczytow(r)
         }
         if (wRuchu) {
             BasicText(
@@ -77,4 +89,86 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+@Composable
+private fun KartaGdi(karta: KartaGdiPrzegladu) {
+    val kolory = LocalI40Kolory.current
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp).background(kolory.powierzchnia).padding(12.dp)) {
+        BasicText("WTRYSK GDI", style = TextStyle(color = kolory.akcent, fontSize = 16.sp))
+        WierszKarty(karta.cisnienie)
+        WierszKarty(karta.obciazenie)
+        WierszKarty(karta.obroty)
+        BasicText(
+            karta.stopka,
+            modifier = Modifier.padding(top = 8.dp),
+            style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+        )
+    }
+}
+
+@Composable
+private fun KartaKatalizator(karta: KartaKatalizatorPrzegladu) {
+    val kolory = LocalI40Kolory.current
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp).background(kolory.powierzchnia).padding(12.dp)) {
+        BasicText("KATALIZATOR", style = TextStyle(color = kolory.akcent, fontSize = 16.sp))
+        WierszKarty(karta.temperatura)
+        BasicText(
+            "zapłon od  ${karta.zaplon}",
+            style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+        )
+        WierszKarty(karta.sonda)
+        val powod = karta.sonda.powod
+        if (powod != null) {
+            BasicText(powod, style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp))
+        }
+        BasicText(
+            "Monitor katalizatora  ${karta.monitorKatalizatora}",
+            modifier = Modifier.padding(top = 8.dp),
+            style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
+        )
+        BasicText(
+            "Monitor sond tlenu  ${karta.monitorSond}",
+            style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
+        )
+    }
+}
+
+@Composable
+private fun KartaOdczytow(raport: Raport) {
+    val kolory = LocalI40Kolory.current
+    val powietrze = FormatPrzegladu.grupaPowietrze(raport)
+    val reszta = FormatPrzegladu.wierszeOdczytow(raport).filter { wiersz ->
+        !wiersz.wyliczony &&
+            wiersz.pid != FormatPrzegladu.PID_KOLEKTOR &&
+            wiersz.pid != FormatPrzegladu.PID_ATMOSFERA
+    }
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp).background(kolory.powierzchnia).padding(12.dp)) {
+        BasicText("ODCZYTY", style = TextStyle(color = kolory.akcent, fontSize = 16.sp))
+        BasicText(
+            "Powietrze i dolot",
+            modifier = Modifier.padding(top = 8.dp),
+            style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+        )
+        for (wiersz in powietrze) {
+            WierszKarty(wiersz)
+        }
+        for (wiersz in reszta) {
+            WierszKarty(wiersz)
+        }
+    }
+}
+
+@Composable
+private fun WierszKarty(wiersz: WierszPrzegladu) {
+    val kolory = LocalI40Kolory.current
+    BasicText(
+        text = "${wiersz.etykieta}  ${wiersz.wartosc}",
+        modifier = Modifier.padding(top = 6.dp),
+        style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
+    )
+    BasicText(
+        text = "norma  ${wiersz.norma}",
+        style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+    )
 }
