@@ -40,6 +40,7 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
     var status by remember { mutableStateOf("Na postoju — pełny przegląd na atrapie.") }
     var raport by remember { mutableStateOf<Raport?>(null) }
     var zmiany by remember { mutableStateOf<String?>(null) }
+    var punkt by remember { mutableStateOf<pl.i40.android.storage.PunktOdniesienia?>(null) }
     val slownik = remember {
         val json = context.resources.openRawResource(R.raw.dtc_dictionary).bufferedReader().use { it.readText() }
         SlownikDtc.zJson(json)
@@ -86,6 +87,7 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
                         PorownaniePrzegladow.stanZRaportu(wynik),
                         RaportJson.encode(wynik)
                     )
+                    punkt = if (vin != null) dao.dlaVin(vin).lastOrNull() else null
                     raport = wynik
                     status = wynik.werdykt.tytul
                 }
@@ -112,7 +114,7 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
             }
             KartaGdi(FormatPrzegladu.kartaGdi(r))
             KartaKatalizator(FormatPrzegladu.kartaKatalizator(r))
-            KartaOdczytow(r)
+            KartaOdczytow(r, punkt)
         }
         if (wRuchu) {
             BasicText(
@@ -167,10 +169,10 @@ private fun KartaKatalizator(karta: KartaKatalizatorPrzegladu) {
 }
 
 @Composable
-private fun KartaOdczytow(raport: Raport) {
+private fun KartaOdczytow(raport: Raport, punkt: pl.i40.android.storage.PunktOdniesienia? = null) {
     val kolory = LocalI40Kolory.current
-    val powietrze = FormatPrzegladu.grupaPowietrze(raport)
-    val reszta = FormatPrzegladu.wierszeOdczytow(raport).filter { wiersz ->
+    val powietrze = FormatPrzegladu.grupaPowietrze(raport, punkt)
+    val reszta = FormatPrzegladu.wierszeOdczytow(raport, punkt).filter { wiersz ->
         !wiersz.wyliczony &&
             wiersz.pid != FormatPrzegladu.PID_KOLEKTOR &&
             wiersz.pid != FormatPrzegladu.PID_ATMOSFERA
@@ -178,7 +180,18 @@ private fun KartaOdczytow(raport: Raport) {
     Column(Modifier.fillMaxWidth().padding(top = 16.dp).background(kolory.powierzchnia).padding(12.dp)) {
         BasicText("ODCZYTY", style = TextStyle(color = kolory.akcent, fontSize = 16.sp))
         BasicText(
-            "Powietrze i dolot",
+            FormatPrzegladu.NAGLOWEK_KOLUMN,
+            modifier = Modifier.padding(top = 4.dp),
+            style = TextStyle(color = kolory.tekstWyciszony, fontSize = 12.sp)
+        )
+        if (punkt != null) {
+            BasicText(
+                FormatZmianPrzegladu.dataDoNaglowka(punkt.kiedyMs),
+                style = TextStyle(color = kolory.tekstWyciszony, fontSize = 12.sp)
+            )
+        }
+        BasicText(
+            FormatPrzegladu.NAGLOWEK_POWIETRZE_WTRYSK,
             modifier = Modifier.padding(top = 8.dp),
             style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
         )
@@ -200,7 +213,11 @@ private fun WierszKarty(wiersz: WierszPrzegladu) {
         style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
     )
     BasicText(
-        text = "norma  ${wiersz.norma}",
+        text = "poprzednio  ${wiersz.poprzednio}",
         style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+    )
+    BasicText(
+        text = "norma  ${wiersz.norma}",
+        style = TextStyle(color = kolory.tekstWyciszony, fontSize = 12.sp)
     )
 }

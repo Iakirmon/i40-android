@@ -1,11 +1,13 @@
 package pl.i40.android.ui
 
 import pl.i40.android.checkup.Raport
+import pl.i40.android.obd.FuelSystemStatus
 import pl.i40.android.obd.PidCatalog
 import pl.i40.android.obd.SupportedPids
 import pl.i40.android.rules.PasmaOdniesienia
 import pl.i40.android.rules.RodzajPasma
 import pl.i40.android.rules.WpisPasma
+import pl.i40.android.storage.PunktOdniesienia
 
 data class WierszPrzegladu(
     val etykieta: String,
@@ -13,7 +15,8 @@ data class WierszPrzegladu(
     val norma: String,
     val pid: Int? = null,
     val wyliczony: Boolean = false,
-    val powod: String? = null
+    val powod: String? = null,
+    val poprzednio: String = FormatPomiaru.NIEDOSTEPNE
 )
 
 data class KartaGdiPrzegladu(
@@ -44,6 +47,11 @@ object FormatPrzegladu {
     const val PID_KOLEKTOR = 0x0B
     const val PID_ATMOSFERA = 0x33
     const val PID_SONDA_ZA_KAT = 0x15
+    const val PID_CZAS_PRACY = 0x1F
+    const val PID_STATUS_PETLI = 0x03
+    const val NAGLOWEK_POWIETRZE_WTRYSK = "POWIETRZE I WTRYSK"
+    const val NAGLOWEK_KOLUMN = "teraz   poprzednio    norma"
+    const val POPRZEDNIO_TA_SAMA = "ta sama"
 
     const val STOPKA_GDI =
         "Stan pompy widać dopiero pod obciążeniem — zobacz panel WTRYSK GDI podczas jazdy."
@@ -150,22 +158,23 @@ object FormatPrzegladu {
         monitorSond = tekstMonitora(raport, MONITOR_SOND)
     )
 
-    fun grupaPowietrze(raport: Raport): List<WierszPrzegladu> = listOf(
-        wierszPid(raport, PID_KOLEKTOR, "Ciśnienie w kolektorze"),
-        wierszPid(raport, PID_ATMOSFERA, "Ciśnienie atmosferyczne"),
+    fun grupaPowietrze(raport: Raport, punkt: PunktOdniesienia? = null): List<WierszPrzegladu> = listOf(
+        wierszPid(raport, PID_KOLEKTOR, "Ciśnienie w kolektorze", punkt),
+        wierszPid(raport, PID_ATMOSFERA, "Ciśnienie atmosferyczne", punkt),
         WierszPrzegladu(
             etykieta = "Podciśnienie (wyliczone)",
             wartosc = FormatPomiaru.liczba(podcisnienieKpa(raport), 0, "kPa"),
             norma = FormatPomiaru.NIEDOSTEPNE,
-            wyliczony = true
+            wyliczony = true,
+            poprzednio = poprzednioPodcisnienie(punkt)
         )
     )
 
-    fun wierszeOdczytow(raport: Raport): List<WierszPrzegladu> {
+    fun wierszeOdczytow(raport: Raport, punkt: PunktOdniesienia? = null): List<WierszPrzegladu> {
         val maska = raport.obslugiwanePid.toSet()
         val defs = SupportedPids.displayable(maska).filter { it.id != PID_PALIWO }
-        val zPid = defs.map { def -> wierszPid(raport, def.id, def.name) }.toMutableList()
-        val podcisnienie = grupaPowietrze(raport).last()
+        val zPid = defs.map { def -> wierszPid(raport, def.id, def.name, punkt) }.toMutableList()
+        val podcisnienie = grupaPowietrze(raport, punkt).last()
         val poAtmosferze = zPid.indexOfFirst { it.pid == PID_ATMOSFERA }
         if (poAtmosferze >= 0) {
             zPid.add(poAtmosferze + 1, podcisnienie)
@@ -175,7 +184,23 @@ object FormatPrzegladu {
         return zPid
     }
 
-    private fun wierszPid(raport: Raport, pid: Int, etykieta: String): WierszPrzegladu {
+    fun tekstKolumnOdczytow(wiersze: List<WierszPrzegladu>, poprzednioMs: Long?): String {
+        val linie = mutableListOf(NAGLOWEK_KOLUMN)
+        if (poprzednioMs != null) {
+            linie.add("        ${FormatZmianPrzegladu.dataDoNaglowka(poprzednioMs)}")
+        }
+        for (w in wiersze) {
+            linie.add("${w.etykieta}  ${w.wartosc}  ${w.poprzednio}  norma ${w.norma}")
+        }
+        return linie.joinToString("\n")
+    }
+
+    private fun wierszPid(
+        raport: Raport,
+        pid: Int,
+        etykieta: String,
+        punkt: PunktOdniesienia? = null
+    ): WierszPrzegladu {
         val odczyt = raport.odczyty.firstOrNull { it.pid == pid }
         val wartosc = when {
             odczyt == null || !odczyt.dostepny -> FormatPomiaru.NIEDOSTEPNE
@@ -194,8 +219,33 @@ object FormatPrzegladu {
             etykieta = etykieta,
             wartosc = wartosc,
             norma = kolumnaNormy(pid),
-            pid = pid
+            pid = pid,
+            poprzednio = kolumnaPoprzednio(pid, punkt, raport)
         )
+    }
+
+    fun kolumnaPoprzednio(pid: Int, punkt: PunktOdniesienia?, raport: Raport): String {
+        if (punkt == null) return FormatPomiaru.NIEDOSTEPNE
+        if (pid == PID_CZAS_PRACY) return FormatPomiaru.NIEDOSTEPNE
+        if (pid == PID_STATUS_PETLI) {
+            val teraz = raport.odczyt(PID_STATUS_PETLI)?.toInt()
+            val pop = punkt.odczyty[PID_STATUS_PETLI]?.toInt()
+            if (teraz == null || pop == null) return FormatPomiaru.NIEDOSTEPNE
+            return if (teraz == pop) POPRZEDNIO_TA_SAMA else FuelSystemStatus.wierszEkranu(pop).tytul.lowercase()
+        }
+        val surowa = punkt.odczyty[pid] ?: return FormatPomiaru.NIEDOSTEPNE
+        return if (pid == PID_SZYNA) {
+            FormatPomiaru.liczba(PasmaOdniesienia.kpaNaBar(surowa), 1, "bar")
+        } else {
+            FormatPomiaru.liczba(surowa, FormatKafla.cyfryPoPrzecinku(pid), jednostka(pid, ""))
+        }
+    }
+
+    private fun poprzednioPodcisnienie(punkt: PunktOdniesienia?): String {
+        val kolektor = punkt?.odczyty[PID_KOLEKTOR]
+        val atmosfera = punkt?.odczyty[PID_ATMOSFERA]
+        if (kolektor == null || atmosfera == null) return FormatPomiaru.NIEDOSTEPNE
+        return FormatPomiaru.liczba(atmosfera - kolektor, 0, "kPa")
     }
 
     private fun jednostka(pid: Int, zOdczytu: String): String {

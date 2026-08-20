@@ -113,6 +113,48 @@ class FormatPrzegladuTest {
         assertTrue(wiersze.any { it.wyliczony })
     }
 
+    @Test
+    fun poprzednioNigdyNieNazywaSieNorma() {
+        val punkt = pl.i40.android.storage.PunktOdniesienia(
+            id = "p",
+            kiedyMs = 1_721_000_000_000L,
+            vin = "VIN",
+            stan = "jalowy_rozgrzany",
+            zrodlo = "przejazd",
+            probek = 20,
+            odczyty = mapOf(0x0E to 12.0, 0x0C to 708.0, 0x1F to 840.0, 0x03 to 2.0)
+        )
+        val raport = raport(
+            MigawkaOdczytu(0x0E, "Wyprzedzenie zapłonu", "°", 12.5, true, false),
+            MigawkaOdczytu(0x0C, "Obroty", "rpm", 712.0, true, false),
+            MigawkaOdczytu(0x1F, "Czas pracy", "s", 900.0, true, false),
+            MigawkaOdczytu(0x03, "Status", "", 2.0, true, false)
+        )
+        val wiersze = FormatPrzegladu.wierszeOdczytow(raport, punkt)
+        val tekst = FormatPrzegladu.tekstKolumnOdczytow(wiersze, punkt.kiedyMs)
+        assertTrue(tekst.contains("poprzednio"))
+        val zaplon = wiersze.first { it.pid == 0x0E }
+        assertEquals(FormatPomiaru.NIEDOSTEPNE, zaplon.norma)
+        assertTrue(zaplon.poprzednio.contains("12"))
+        assertFalse(zaplon.poprzednio.contains("norma"))
+        assertFalse(tekst.contains("norma 12"))
+        val czas = wiersze.first { it.pid == 0x1F }
+        assertEquals(FormatPomiaru.NIEDOSTEPNE, czas.poprzednio)
+        val status = wiersze.first { it.pid == 0x03 }
+        assertEquals("ta sama", status.poprzednio)
+        assertFalse(wiersze.any { it.pid == 0x2F })
+    }
+
+    @Test
+    fun brakPunktuDajeKreskeNieZero() {
+        val raport = raport(MigawkaOdczytu(0x0C, "Obroty", "rpm", 712.0, true, false))
+        val wiersze = FormatPrzegladu.wierszeOdczytow(raport, null)
+        val obroty = wiersze.first { it.pid == 0x0C }
+        assertEquals(FormatPomiaru.NIEDOSTEPNE, obroty.poprzednio)
+        assertFalse(obroty.poprzednio == "0")
+        assertFalse(obroty.poprzednio.contains("0 "))
+    }
+
     private fun pustyRaport(): Raport = raport()
 
     private fun raport(vararg odczyty: MigawkaOdczytu): Raport = Raport(
