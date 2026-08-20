@@ -89,4 +89,14 @@ class BlokadaPredkosciTest {
         assertEquals(stan.olejC, stan.wartosciAlarmu()[0x5C])
         assertEquals(stan.olejC, stan.wartosc(0x5C))
     }
+
+    @Test
+    fun panelSwitchWRuchuAZmianaParametrowZablokowana() {
+        assertTrue(
+            BlokadaPredkosci.pozwala(InterakcjaZywa.PrzelaczaniePaneli, wRuchu = true, nagrywa = true)
+        )
+        assertFalse(
+            BlokadaPredkosci.pozwala(InterakcjaZywa.ZmianaParametrow, wRuchu = true, nagrywa = true)
+        )
+    }
 }

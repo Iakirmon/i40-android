@@ -9,6 +9,7 @@ object BlokadaPredkosci {
 
     fun pozwala(rodzaj: InterakcjaZywa, wRuchu: Boolean, nagrywa: Boolean): Boolean {
         if (!wRuchu) return true
+        if (rodzaj == InterakcjaZywa.PrzelaczaniePaneli) return true
         return rodzaj == InterakcjaZywa.Stop && nagrywa
     }
 }
@@ -19,4 +20,10 @@ enum class InterakcjaZywa {
     Ustawienia,
     ZmianaParametrow,
     Przeglad,
+
+    /**
+     * Szerokie przeciągnięcie bez celu do trafienia — nie zmienia nagrywania
+     * i jest mniej rozpraszające niż czytanie ośmiu liczb naraz; po to panele powstały.
+     */
+    PrzelaczaniePaneli,
 }
