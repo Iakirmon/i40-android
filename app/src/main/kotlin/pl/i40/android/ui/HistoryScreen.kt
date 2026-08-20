@@ -33,19 +33,53 @@ import java.util.Calendar
 import java.util.Locale
 import kotlin.math.roundToInt
 import pl.i40.android.storage.Przejazd
+import pl.i40.android.storage.PunktOdniesienia
 import pl.i40.android.storage.StatusPrzejazdu
 
 @Composable
-fun HistoryScreen(przejazdy: List<Przejazd>, onUsun: (String) -> Unit, modifier: Modifier = Modifier) {
+fun HistoryScreen(
+    przejazdy: List<Przejazd>,
+    onUsun: (String) -> Unit,
+    onChroniony: (String, Boolean) -> Unit = { _, _ -> },
+    punkty: List<PunktOdniesienia> = emptyList(),
+    modifier: Modifier = Modifier
+) {
     val kolory = LocalI40Kolory.current
     val cal = remember { SiatkaMiesiaca.kalendarzPolski() }
     var miesiac by remember { mutableLongStateOf(SiatkaMiesiaca.poczatekMiesiaca(System.currentTimeMillis(), cal)) }
     var dzien by remember { mutableStateOf<Long?>(null) }
     var wybrany by remember { mutableStateOf<Przejazd?>(null) }
+    var doPotwierdzenia by remember { mutableStateOf<Przejazd?>(null) }
 
-    val sesja = wybrany
+    val potwierdzany = doPotwierdzenia
+    if (potwierdzany != null) {
+        OknoPotwierdzeniaUsuniecia(
+            tekst = FormatPotwierdzenia.pojedynczy(
+                potwierdzany,
+                liczbaPunktowPrzejazdu(potwierdzany, punkty),
+                FormatPotwierdzenia.rozmiarBajtow(potwierdzany),
+                cal
+            ),
+            onAnuluj = { doPotwierdzenia = null },
+            onUsun = {
+                onUsun(potwierdzany.id)
+                doPotwierdzenia = null
+                wybrany = null
+            },
+            modifier = modifier
+        )
+        return
+    }
+
+    val sesja = wybrany?.let { id -> przejazdy.firstOrNull { it.id == id.id } }
     if (sesja != null) {
-        SessionDetailScreen(przejazd = sesja, onWstecz = { wybrany = null }, modifier = modifier)
+        SessionDetailScreen(
+            przejazd = sesja,
+            onWstecz = { wybrany = null },
+            onUsun = { doPotwierdzenia = sesja },
+            onChroniony = { onChroniony(sesja.id, it) },
+            modifier = modifier
+        )
         return
     }
 
@@ -131,7 +165,14 @@ fun HistoryScreen(przejazdy: List<Przejazd>, onUsun: (String) -> Unit, modifier:
             BasicText("Brak przejazdów tego dnia.", style = TextStyle(color = kolory.tekstWyciszony, fontSize = 13.sp))
         } else {
             for (p in listaDnia) {
-                WierszPrzejazdu(p, cal, onClick = { wybrany = p }, onUsun = { onUsun(p.id) })
+                WierszPrzejazdu(
+                    p,
+                    cal,
+                    onClick = { wybrany = p },
+                    onGestUsuniecia = {
+                        if (p.status != StatusPrzejazdu.WToku) doPotwierdzenia = p
+                    }
+                )
             }
         }
     }
@@ -169,7 +210,7 @@ private fun KartaMiesiacaUi(karta: KartaMiesiaca) {
 }
 
 @Composable
-private fun WierszPrzejazdu(p: Przejazd, cal: Calendar, onClick: () -> Unit, onUsun: () -> Unit) {
+private fun WierszPrzejazdu(p: Przejazd, cal: Calendar, onClick: () -> Unit, onGestUsuniecia: () -> Unit) {
     val kolory = LocalI40Kolory.current
     var offset by remember { mutableFloatStateOf(0f) }
     val c = cal.clone() as Calendar
@@ -179,28 +220,50 @@ private fun WierszPrzejazdu(p: Przejazd, cal: Calendar, onClick: () -> Unit, onU
     val czas = "%d min".format(dur / 60)
     val km = p.podsumowanie.dystansKm?.let { FormatPomiaru.liczba(it, 1, "km") } ?: FormatPomiaru.NIEDOSTEPNE
     val przerwany = p.status == StatusPrzejazdu.Odzyskany
+    val wToku = p.status == StatusPrzejazdu.WToku
+    val gest = if (wToku) {
+        Modifier
+    } else {
+        Modifier.pointerInput(p.id) {
+            detectHorizontalDragGestures(
+                onDragEnd = {
+                    if (offset < -80f) onGestUsuniecia()
+                    offset = 0f
+                },
+                onHorizontalDrag = { _, d -> offset += d }
+            )
+        }
+    }
     Column(
         Modifier
             .fillMaxWidth()
             .offset { IntOffset(offset.roundToInt(), 0) }
-            .pointerInput(p.id) {
-                detectHorizontalDragGestures(
-                    onDragEnd = {
-                        if (offset < -80f) onUsun()
-                        offset = 0f
-                    },
-                    onHorizontalDrag = { _, d -> offset += d }
-                )
-            }
+            .then(gest)
             .clickable(onClick = onClick)
             .padding(8.dp)
             .background(kolory.powierzchnia)
             .padding(8.dp)
     ) {
-        BasicText(godz, style = TextStyle(color = kolory.tekst, fontSize = 16.sp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            BasicText(godz, modifier = Modifier.weight(1f), style = TextStyle(color = kolory.tekst, fontSize = 16.sp))
+            if (p.chroniony) {
+                BasicText("🔒", style = TextStyle(color = kolory.tekstDrugi, fontSize = 14.sp))
+            }
+        }
+        val dopisek = when {
+            wToku -> " · nagrywanie trwa"
+            przerwany -> " · przerwany"
+            else -> ""
+        }
         BasicText(
-            "$czas · $km" + if (przerwany) " · przerwany" else "",
-            style = TextStyle(color = if (przerwany) kolory.uwaga else kolory.tekstDrugi, fontSize = 13.sp)
+            "$czas · $km$dopisek",
+            style = TextStyle(color = if (przerwany || wToku) kolory.uwaga else kolory.tekstDrugi, fontSize = 13.sp)
         )
     }
+}
+
+internal fun liczbaPunktowPrzejazdu(p: Przejazd, punkty: List<PunktOdniesienia>): Int {
+    val vin = p.vin ?: return 0
+    val koniec = p.koniecMs ?: Long.MAX_VALUE
+    return punkty.count { it.vin == vin && it.kiedyMs >= p.poczatekMs && it.kiedyMs <= koniec }
 }

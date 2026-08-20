@@ -71,6 +71,10 @@ class MainActivity : ComponentActivity() {
                     svc?.usunPrzejazd(id)
                     przejazdy = svc?.listaPrzejazdow().orEmpty()
                 },
+                onChroniony = { id, v ->
+                    svc?.ustawChroniony(id, v)
+                    przejazdy = svc?.listaPrzejazdow().orEmpty()
+                },
                 punkty = punkty
             )
         }

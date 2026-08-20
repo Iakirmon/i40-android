@@ -38,11 +38,17 @@ interface PrzejazdMagazyn {
     fun listaWToku(): List<Przejazd>
     fun lista(): List<Przejazd>
     fun usun(id: String)
+    fun usunWiele(ids: Collection<String>): WynikKasowania
+    fun ustawChroniony(id: String, chroniony: Boolean)
 }
 
 /** Magazyn w pamięci — testy JVM bez SQLite. */
 class PamiecPrzejazdow : PrzejazdMagazyn {
     private val wiersze = LinkedHashMap<String, Przejazd>()
+    var wykonanoVacuum: Boolean = false
+        private set
+    val usunietychPunktow: Int = 0
+    val usunietychPrzegladow: Int = 0
 
     override fun wstaw(przejazd: Przejazd) {
         wiersze[przejazd.id] = przejazd
@@ -78,7 +84,21 @@ class PamiecPrzejazdow : PrzejazdMagazyn {
     override fun lista(): List<Przejazd> = wiersze.values.map { it.skopiuj() }
 
     override fun usun(id: String) {
-        wiersze.remove(id)
+        usunWiele(listOf(id))
+    }
+
+    override fun usunWiele(ids: Collection<String>): WynikKasowania {
+        val wynik = KasowaniePrzejazdow.przygotuj(lista(), ids)
+        for (id in wynik.doUsuniecia) {
+            wiersze.remove(id)
+        }
+        if (wynik.wymagaVacuum) wykonanoVacuum = true
+        return wynik
+    }
+
+    override fun ustawChroniony(id: String, chroniony: Boolean) {
+        val stary = wiersze[id] ?: return
+        wiersze[id] = stary.copy(chroniony = chroniony)
     }
 
     private fun Przejazd.skopiuj() = copy(przebieg = przebieg.kopia())

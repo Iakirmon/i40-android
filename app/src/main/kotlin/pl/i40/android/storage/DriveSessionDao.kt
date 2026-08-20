@@ -145,7 +145,33 @@ class DriveSessionDao(context: Context) :
     override fun lista(): List<Przejazd> = listaGdzie("1 = 1", emptyArray())
 
     override fun usun(id: String) {
-        writableDatabase.execSQL("DELETE FROM przejazd WHERE id = ?", arrayOf(id))
+        usunWiele(listOf(id))
+    }
+
+    override fun usunWiele(ids: Collection<String>): WynikKasowania {
+        val wynik = KasowaniePrzejazdow.przygotuj(lista(), ids)
+        if (wynik.doUsuniecia.isEmpty()) return wynik
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            for (id in wynik.doUsuniecia) {
+                db.execSQL("DELETE FROM przejazd WHERE id = ?", arrayOf(id))
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        if (wynik.wymagaVacuum) {
+            db.execSQL("VACUUM")
+        }
+        return wynik
+    }
+
+    override fun ustawChroniony(id: String, chroniony: Boolean) {
+        writableDatabase.execSQL(
+            "UPDATE przejazd SET chroniony = ? WHERE id = ?",
+            arrayOf(if (chroniony) 1 else 0, id)
+        )
     }
 
     private fun listaGdzie(where: String, args: Array<String>): List<Przejazd> {

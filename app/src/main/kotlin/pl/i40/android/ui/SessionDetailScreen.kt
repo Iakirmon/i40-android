@@ -22,9 +22,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pl.i40.android.acquisition.RingSample
 import pl.i40.android.storage.Przejazd
+import pl.i40.android.storage.StatusPrzejazdu
 
 @Composable
-fun SessionDetailScreen(przejazd: Przejazd, onWstecz: () -> Unit, modifier: Modifier = Modifier) {
+fun SessionDetailScreen(
+    przejazd: Przejazd,
+    onWstecz: () -> Unit,
+    onUsun: () -> Unit = {},
+    onChroniony: (Boolean) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     val kolory = LocalI40Kolory.current
     val model = remember(przejazd.id) {
         ModelSzczegolowSesji(przejazd.podsumowanie, przejazd.przebieg, przejazd.notatka, przejazd.startMs())
@@ -88,6 +95,21 @@ fun SessionDetailScreen(przejazd: Przejazd, onWstecz: () -> Unit, modifier: Modi
                     style = TextStyle(color = kolory.akcent, fontFamily = I40CzcionkaWartosci, fontSize = 14.sp)
                 )
             }
+        }
+        val klodka = if (przejazd.chroniony) "🔒 Chroniony" else "○ Niechroniony"
+        BasicText(
+            klodka,
+            modifier = Modifier
+                .clickable { onChroniony(!przejazd.chroniony) }
+                .padding(top = 16.dp, bottom = 8.dp),
+            style = TextStyle(color = kolory.tekst, fontSize = 16.sp)
+        )
+        if (przejazd.status != StatusPrzejazdu.WToku) {
+            BasicText(
+                "Usuń",
+                modifier = Modifier.clickable(onClick = onUsun).padding(8.dp),
+                style = TextStyle(color = kolory.uwaga, fontSize = 16.sp)
+            )
         }
     }
 }

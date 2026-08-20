@@ -112,6 +112,14 @@ class DriveService : Service() {
         DriveSessionDao(applicationContext).usun(id)
     }
 
+    fun usunPrzejazdy(ids: Collection<String>) {
+        DriveSessionDao(applicationContext).usunWiele(ids)
+    }
+
+    fun ustawChroniony(id: String, chroniony: Boolean) {
+        DriveSessionDao(applicationContext).ustawChroniony(id, chroniony)
+    }
+
     fun wejdzWNagrywanie() {
         _stan.value = StanPrzejazdu.Nagrywa
         zywy.nagrywa = true

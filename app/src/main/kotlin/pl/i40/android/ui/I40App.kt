@@ -34,6 +34,7 @@ fun I40App(
     onStop: () -> Unit,
     przejazdy: List<Przejazd> = emptyList(),
     onUsun: (String) -> Unit = {},
+    onChroniony: (String, Boolean) -> Unit = { _, _ -> },
     punkty: List<pl.i40.android.storage.PunktOdniesienia> = emptyList()
 ) {
     val kolory = LocalI40Kolory.current
@@ -76,6 +77,8 @@ fun I40App(
                 Zakladka.Historia -> HistoryScreen(
                     przejazdy = przejazdy,
                     onUsun = onUsun,
+                    onChroniony = onChroniony,
+                    punkty = punkty,
                     modifier = Modifier.weight(1f)
                 )
             }
