@@ -30,6 +30,7 @@ fun SessionDetailScreen(
     onWstecz: () -> Unit,
     onUsun: () -> Unit = {},
     onChroniony: (Boolean) -> Unit = {},
+    onPorownaj: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val kolory = LocalI40Kolory.current
@@ -97,6 +98,11 @@ fun SessionDetailScreen(
             }
         }
         val klodka = if (przejazd.chroniony) "🔒 Chroniony" else "○ Niechroniony"
+        BasicText(
+            "Porównaj",
+            modifier = Modifier.clickable(onClick = onPorownaj).padding(8.dp),
+            style = TextStyle(color = kolory.akcent, fontSize = 16.sp)
+        )
         BasicText(
             klodka,
             modifier = Modifier

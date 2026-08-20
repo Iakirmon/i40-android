@@ -56,6 +56,7 @@ fun HistoryScreen(
     var doPotwierdzeniaWiele by remember { mutableStateOf<List<Przejazd>?>(null) }
     var tryb by remember { mutableStateOf(TrybZaznaczania()) }
     var porzadki by remember { mutableStateOf(false) }
+    var porownanie by remember { mutableStateOf<Przejazd?>(null) }
 
     val potwierdzany = doPotwierdzenia
     if (potwierdzany != null) {
@@ -110,6 +111,17 @@ fun HistoryScreen(
         return
     }
 
+    val porownywany = porownanie?.let { id -> przejazdy.firstOrNull { it.id == id.id } }
+    if (porownywany != null) {
+        PorownanieScreen(
+            ten = porownywany,
+            kandydaci = przejazdy,
+            onWstecz = { porownanie = null },
+            modifier = modifier
+        )
+        return
+    }
+
     val sesja = wybrany?.let { id -> przejazdy.firstOrNull { it.id == id.id } }
     if (sesja != null) {
         SessionDetailScreen(
@@ -117,6 +129,7 @@ fun HistoryScreen(
             onWstecz = { wybrany = null },
             onUsun = { doPotwierdzenia = sesja },
             onChroniony = { onChroniony(sesja.id, it) },
+            onPorownaj = { porownanie = sesja },
             modifier = modifier
         )
         return
