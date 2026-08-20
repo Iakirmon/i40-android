@@ -1,0 +1,24 @@
+# Pliki całkowicie poza zasięgiem modelu i indeksowania.
+# Wchodzi tu wyłącznie to, czego model nie ma powodu czytać.
+# Rzeczy duże, ale potrzebne na żądanie — kod źródłowy wersji iOS — są
+# w .cursorindexingignore, żeby dały się otworzyć, ale nie zaśmiecały wyszukiwania.
+
+# Artefakty budowania
+build/
+app/build/
+.gradle/
+local.properties
+*.apk
+*.aab
+captures/
+
+# Środowisko
+.idea/
+.vscode/
+.kotlin/
+.cxx/
+
+# Lokalne
+.env
+*.jks
+*.keystore

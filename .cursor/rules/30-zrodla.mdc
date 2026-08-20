@@ -1,0 +1,156 @@
+---
+description: Zakaz wymyślania formuł PID, progów, opisów DTC i możliwości adaptera w i40-android. Stosuj zawsze, gdy do kodu trafia jakakolwiek stała liczbowa, nazwa PID-u, opis kodu błędu albo założenie o tym, co potrafi ELM327 lub to konkretne auto.
+---
+
+# Nie wymyślasz
+
+Ten projekt stoi na jednej obietnicy:
+
+> **Każda liczba pochodzi z pomiaru albo z nazwanego modelu.**
+
+Wymyślona stała wygląda dokładnie tak samo jak przepisana ze źródła — i dlatego jedna wymyślona
+podważa wszystkie pozostałe. W narzędziu diagnostycznym to nie jest kwestia stylu: pomyłka
+w mnożniku **nie wywala aplikacji**, tylko pokazuje wiarygodnie wyglądającą nieprawdę o stanie
+silnika.
+
+## Reguła twarda
+
+**Nie ma źródła — nie ma stałej.**
+
+Dotyczy to także **tekstu**: treść haseł słownika pochodzi wyłącznie z `docs/slownik.md`
+i przenosi się ją **co do zdania**. Wyjaśnienie zmyślone wygląda identycznie jak przepisane —
+tak samo jak wymyślona stała.
+
+Każda liczba w kodzie musi dać się wskazać w jednym z miejsc z `docs/zrodla.md`. Jeśli nie
+potrafisz powiedzieć, z której tabeli specu ona pochodzi, to jej nie wpisujesz — tylko mówisz,
+czego potrzebujesz.
+
+## Jedyny wyjątek: liczba, która nic nie twierdzi o samochodzie
+
+Reguła twarda dotyczy liczb **orzekających o aucie**. Nie każda liczba orzeka.
+
+`5` w panelu Porządki (*„przejazdy krótsze niż 5 minut"*) nie mówi, że pięciominutowy przejazd
+jest gorszy, krótki ani niewart uwagi. Mówi tylko: *oto przejazdy krótsze niż pięć minut*.
+To **kryterium wyboru**, nie próg — i wymaganie dla niego źródła byłoby nieporozumieniem,
+bo nie istnieje badanie, które by je potwierdziło ani obaliło.
+
+**Test rozstrzygający — liczba jest progiem, gdy choć raz odpowiesz „tak":**
+
+1. Wchodzi do jakiejkolwiek reguły, werdyktu, alarmu albo pasma odniesienia?
+2. Pojawia się w raporcie, przeglądzie albo w kolumnie normy?
+3. Jest gdziekolwiek opisana jako **zalecana, normalna, typowa albo prawidłowa**?
+4. Steruje kolorem, ostrzeżeniem albo słowem oceniającym?
+
+Trzy razy „nie" i liczba jest kryterium wyboru. Choć raz „tak" — **jest progiem i obowiązuje
+reguła twarda**.
+
+**Kryterium wyboru ma dodatkowe obowiązki**, bez których zamienia się w próg tylnymi drzwiami:
+
+- **żadna wartość nie jest oznaczona jako zalecana** ani wybrana domyślnie,
+- użytkownik wybiera ją sam z jawnego zestawu,
+- nie trafia do żadnego zapisu, który przeżyje ekran, na którym ją wybrano.
+
+Dziś w projekcie są **trzy** takie liczby, wszystkie w warstwie historii i wszystkie wymienione
+w jej sekcji 16: minuty i miesiące w panelu Porządki, `50` wierszy przed `VACUUM` (koszt
+operacji na bazie) oraz `10` pozycji przed zwinięciem listy w oknie potwierdzenia (czytelność).
+
+**Nie rozszerzaj tego wyjątku.** Jeśli musisz się zastanawiać, czy liczba orzeka o aucie — orzeka.
+
+## Hierarchia źródeł
+
+Przy rozbieżności obowiązuje ta kolejność:
+
+| Priorytet | Źródło | Uzasadnienie |
+|---|---|---|
+| 1 | **Kod `_github/ios-obd2-ble-diagnostics`** | Ta wersja jeździła samochodem |
+| 2 | `MockI40Script` — zapis z auta z 2026-08-08 | Prawda o tym egzemplarzu |
+| 3 | Sekcje 9 i 10 tego specu | Wyciąg z 1 i 2, zweryfikowany |
+| 4 | Specyfikacje iOS z `i40-check` | **Rozjeżdżają się z kodem w siedmiu miejscach** |
+| 5 | SAE J1979 | Standard, ale nie mówi nic o tym egzemplarzu |
+
+**Punkt 4 jest ostrzeżeniem, nie źródłem pierwszego wyboru.** Sekcja 3.1 specu wymienia siedem
+miejsc, w których specyfikacja iOS mówi co innego niż działający kod — i za każdym razem rację
+ma kod.
+
+Czego **nie wolno** traktować jako źródła: własnej pamięci o formułach OBD-II, artykułów
+o „standardowych PID-ach", dokumentacji innych aplikacji diagnostycznych, forów o ELM327.
+Materiały wtórne wolno użyć do jednej rzeczy: żeby **znaleźć**, gdzie w kodzie iOS albo
+w standardzie szukać. Do treści stałej nigdy.
+
+## Czego nie wymyślasz — konkretnie
+
+- **Formuł PID-ów.** Tablica w sekcji 9.1 jest zamknięta. PID spoza niej nie istnieje. Nie
+  dopisujesz „dla kompletności" PID-u, który wydaje się oczywisty — jeśli nie ma go w tablicy,
+  nie ma go w projekcie.
+
+- **Opisów kodów DTC.** Słownik ma 41 wpisów. Kod spoza niego dostaje jawne oznaczenie
+  („kod producencki Hyundai, opis nieznany" albo „brak wpisu w słowniku") wraz z surowym kodem.
+  **Brak opisu jest uczciwszy niż zgadnięty.**
+
+- **Progów reguł i alarmów.** 105 °C, 13,0 V, 500 obr/min, 4000 obr/min, ±10 %, 20 %, 70 °C,
+  15,0 V, 12,0–12,4 V, 100 km, 90 °C — wszystkie są w tabelach 10.3 i 10.4. Nie zaokrąglasz,
+  nie „poprawiasz" i nie przenosisz z innego auta.
+
+- **Bezpieczników pętli.** 20 ms, 25 zapytań/s, 10 pustych odczytów, rotacja co 10 cykli,
+  `03` co 200 cykli, mnożniki 1,5 i 0,9, sufit 8,0 — tabela 10.1.
+
+- **Stałych modelu oleju.** `tauBase` 300 s, +25 °C przy pełnym obciążeniu, `loadFactor`
+  0,6+0,8, `ambientFactor` 1+(20−ambient)/60, `clamp` 150…900, progi pewności 180 i 600 s.
+  Model ma być kalibrowany **pomiarem**, nie przeczuciem.
+
+- **Timeoutów.** 25 s dla przeglądu, 5 s dla nagrywania. Specyfikacja iOS mówi 5 s dla obu
+  i **jest w tym punkcie nieaktualna** — patrz rozbieżność 5.
+
+- **Sekwencji inicjalizacji ELM.** Jest w sekcji 8.8 i zawiera `ATI`, `AT@1` oraz **dwa**
+  wywołania `ATDPN`. Nie skracasz jej, bo „wygląda na nadmiarową".
+
+- **Tego, co potrafi to auto.** Maski są zdekodowane w sekcji 3.2. `5C`, `5E` i `10` **nie są
+  obsługiwane**. Nie zakładasz, że „skoro to standard, to pewnie odpowie".
+
+- **UUID-ów adaptera.** `18F0` / `2AF1` / `2AF0` są odczytane z urządzenia. Innych nie
+  dopisujesz, a wybór pary i tak idzie przez `GattPairFinder`.
+
+## Gdy nie wiesz
+
+Powiedz, że nie wiesz, i powiedz, czego potrzebujesz. **To jest poprawna odpowiedź i nie jest
+porażką.**
+
+Akceptowalne:
+
+> „Potrzebuję formuły dla PID `2C`. Nie ma go w tablicy w sekcji 9.1 ani w `PIDCatalog.swift`.
+> Podaj wartość albo pozwól mi go pominąć."
+
+> „Nie wiem, czy to auto obsługuje tryb 06 — w zapisie z 2026-08-08 nie ma takiego zapytania.
+> Potrzebny nowy zapis z auta."
+
+**Niedopuszczalne:** „standardowo przyjmuje się", „typowo ELM327 zwraca", „zgodnie z SAE
+zwykle", „na podstawie schematu numeracji", „to wynika z ogólnych zasad diagnostyki".
+
+## Sygnały ostrzegawcze u siebie samego
+
+Zatrzymaj się, jeśli piszesz:
+
+- stałą, której nie potrafisz wskazać w tabeli 9 albo 10,
+- PID dopisany do katalogu „dla kompletności",
+- opis kodu DTC, który brzmi jak Twoje zdanie, a nie jak wpis ze słownika,
+- `?: 0.0` albo `orElse(0)` na wartości pochodzącej z odczytu — to łamie niezmiennik 1
+  i zamienia brak danych w fałszywy pomiar,
+- próg „zaokrąglony do ładniejszej liczby",
+- założenie, że jakiś PID odpowie, bez sprawdzenia w masce.
+
+Ostatni punkt jest najczęstszy. Standard OBD-II opisuje, co **może** istnieć; maska tego
+egzemplarza mówi, co **istnieje**. Lista pól powstaje z ich przecięcia i to jest jedyny
+poprawny sposób.
+
+## Granica kompetencji
+
+Aplikacja mówi, **co pokazuje sterownik** i **co z tego wynika według reguł z tabeli 10.4**.
+
+Nie orzeka o tym, co jest zepsute w samochodzie. „Korekta długoterminowa powyżej +10 %,
+mieszanka uboga: nieszczelność dolotu, słabnący przepływomierz, brudne wtryskiwacze" — to
+wyliczenie możliwych przyczyn, a nie diagnoza. Różnica jest istotna i ma zostać widoczna
+w brzmieniu wniosków.
+
+Temperatura oleju jest **modelem** i musi być tak podpisana zawsze, razem ze skalą pewności.
+Model podany jako pomiar to najgorsze możliwe kłamstwo tego projektu, bo dotyczy wielkości,
+przy której użytkownik podejmuje decyzję o wciśnięciu gazu na zimnym silniku.

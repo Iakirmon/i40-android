@@ -1,0 +1,206 @@
+---
+description: Kontrakt warstwy czystej w i40-android — dekodery PID, DTC, VIN, pętla próbkowania, model oleju, reguły i alarmy. Zero I/O, zero Androida.
+globs: app/src/main/kotlin/pl/i40/android/obd/**,app/src/main/kotlin/pl/i40/android/acquisition/**,app/src/main/kotlin/pl/i40/android/rules/**,app/src/main/kotlin/pl/i40/android/charts/**
+---
+
+# Kontrakt warstwy czystej
+
+To jest miejsce, w którym mieszka cała wartość merytoryczna projektu — i jednocześnie jedyne,
+w którym błąd jest **niewidoczny na ekranie**. Pomyłka w mnożniku nie wywala aplikacji: pokazuje
+liczbę, która wygląda wiarygodnie i jest nieprawdziwa.
+
+## Zasada nadrzędna
+
+**Te pakiety są czyste.** Bez `android.*`, bez I/O, bez plików, bez sieci, bez
+`System.currentTimeMillis()`, bez losowości. Zegar jest **wstrzykiwany** — inaczej testy tempa
+musiałyby czekać w czasie rzeczywistym.
+
+Import z `android.*` w tych pakietach to błąd architektury, nie szczegół. Cała ta warstwa ma
+się dać przetestować na JVM, bez emulatora.
+
+---
+
+# Katalog PID-ów
+
+**Tablica z sekcji 9.1 specu jest zamknięta. PID spoza niej nie istnieje.**
+
+Definicja niesie: numer, nazwę po polsku, liczbę bajtów, jednostkę, **fizyczny zakres
+dopuszczalny** i funkcję dekodującą. Wartość spoza zakresu jest oznaczana jako **podejrzana
+i pokazywana z ostrzeżeniem, nie jako fakt**.
+
+**Katalog jest jedynym źródłem długości danych.** Parser wielo-PID czyta numer, sprawdza
+długość w katalogu i konsumuje tyle bajtów. Nieznany PID albo brak bajtów **kończy
+parsowanie** — zgadnięcie długości przesuwa wszystkie kolejne bajty i produkuje wiarygodnie
+wyglądające bzdury.
+
+## Czego to auto nie obsługuje
+
+Zdekodowane z prawdziwych masek (`4100BE3EA813`, `4120A007F011`, `4140FED00400`), sekcja 3.2
+specu:
+
+| PID | Stan | Konsekwencja |
+|---|---|---|
+| `5C` temperatura oleju | **nieobsługiwany** | Temperatura oleju to **model termiczny** |
+| `5E` zużycie paliwa | **nieobsługiwany** | `paliwoL` w podsumowaniu **zawsze `null`** |
+| `10` MAF | **nieobsługiwany** | Silnik GDI ma czujnik ciśnienia, MAF-u fizycznie nie ma |
+| `2F` poziom paliwa | w masce, **bez danych** | Zwraca zero niezależnie od stanu baku. **Nie odpytywany, nigdzie nie wyświetlany** — poprawka P1 w `00-projekt.mdc` |
+
+**Zostają w katalogu** — katalog opisuje standard, maska opisuje egzemplarz, a lista pól
+w interfejsie powstaje z ich **przecięcia**.
+
+**Nie wolno ich wstawiać do pętli gorącej ani do rotacji zimnej.** Kto to zrobi, zamieni jedno
+zapytanie na dwa i dostanie w zamian pustkę. **`012F` podlega temu zakazowi tak samo jak trzy
+nieobsługiwane** — mimo że maska go zgłasza. Powód jest inny, skutek identyczny.
+
+> **Maska to deklaracja sterownika, nie obietnica danych.** `012F` jest jedynym znanym
+> przypadkiem na tym egzemplarzu — i jedynym potrzebnym, żeby nie traktować maski jako dowodu,
+> że parametr coś zwróci.
+
+## Maski
+
+Bit 7 bajtu A to pierwszy PID zakresu, bit 0 bajtu D to ostatni — **i ten ostatni oznacza
+wyłącznie „jest następna maska"**.
+
+**Bity `20 40 60 80` trzeba odjąć ze zbioru wynikowego.** To znaczniki kontynuacji, nie
+parametry pomiarowe. Bez odjęcia aplikacja próbuje je odczytać i dostaje `NO DATA` na każdym.
+
+Test regresji obowiązkowy: trzy maski z zapisu z auta muszą dać **dokładnie** zbiór z sekcji
+3.2, w szczególności bez `5C`, `5E` i `10`, a **z `2F`**.
+
+⚠️ **`2F` zostaje w oczekiwanym wyniku tego testu, choć nie jest odpytywany.** Test sprawdza
+dekoder masek, a maska naprawdę zgłasza `2F` — usunięcie go z oczekiwań zamaskowałoby błąd
+dekodera. Zbiór z maski i zbiór odpytywany to **dwie różne listy** i tylko pierwsza jest tu
+testowana.
+
+---
+
+# Kody DTC
+
+Dwa bajty na kod. Pierwszy bajt: bity 7–6 rodzina (`00`→P, `01`→C, `10`→B, `11`→U),
+bity 5–4 druga cyfra, bity 3–0 trzecia. Drugi bajt: czwarta i piąta cyfra.
+
+Słownik ma **41 wpisów** i jest zamknięty. Kod spoza niego:
+
+| Rodzaj | Opis |
+|---|---|
+| `P1xxx`, `P30xx`–`P33xx` | **„kod producencki Hyundai, opis nieznany"** + surowy kod |
+| `P0xxx`, `P2xxx` | „Kod generyczny — brak wpisu w słowniku" |
+| pozostałe | „Brak opisu w słowniku" |
+
+**Nie wymyślaj opisów.** Brak opisu jest uczciwszy niż zgadnięty, a zgadnięty wygląda dokładnie
+tak samo jak prawdziwy — i to jest cały problem.
+
+---
+
+# VIN
+
+Wyprowadzamy **wyłącznie to, co pewne**:
+
+- **Znaki 1–3** — producent. `KMH` = Hyundai Motor Company, Korea.
+- **Znak 10** — rok modelowy. Kodowanie **pomija litery I, O, Q, U, Z**, więc `A`=2010,
+  `B`=2011, … `F`=**2015**, `G`=2016.
+- **Znak 11** — zakład. **Osobna, niezależna tablica** — litery pominięte wyżej tu obowiązują,
+  dlatego `U` = Ulsan jest poprawne, mimo że jako kod rocznika `U` nie występuje.
+
+**Znaków 4–8 nie dekoduj.** Hyundai kodowania nadwozia i silnika nie publikuje, a zgadnięcie
+byłoby podaniem nieprawdy jako faktu.
+
+---
+
+# Pętla próbkowania
+
+## Skład pętli gorącej — kolejność jest obowiązkowa
+
+1. **Najpierw obowiązkowe: `0D`, `05` i `04`.** Nie wolno ich wypchnąć.
+2. **Trzy** gniazda wykresów.
+3. Uzupełnienie z domyślnych, gdyby zabrakło.
+
+Razem dokładnie sześć — maksimum jednego zapytania.
+
+`0D` odpowiada za **blokadę prędkościową**, `05` za **alarm przegrzania**, `04` jest **wejściem
+modelu temperatury oleju** — bez niego model cicho zamiera, a kafel pokazuje wartość, która
+przestała się odświeżać. Konfiguracja ekranu nie ma prawa żadnego z nich usunąć. Test tego
+pilnujący jest obowiązkowy.
+
+## Poziomy poza gorącym — skład w STANIE AKTUALNYM
+
+⚠️ **Skład poziomów szybkiego, średniego i wolnego jest w sekcji STAN AKTUALNY pliku
+`00-projekt.mdc`, nie tutaj.** Przebudowywano go dwukrotnie i każda kopia w innym miejscu
+rozjeżdżałaby się przy następnej zmianie.
+
+Zasada, która nie zmienia się nigdy: **każdy poziom to dokładnie sześć PID-ów**, bo to maksimum
+jednego zapytania. Siedem oznacza dwa zapytania na obieg i rozwala budżet cyklu.
+
+Druga zasada: **poziomy dzieli się według tego, jak szybko wartość się zmienia**, nie według
+tego, który panel jej potrzebuje. Nagrywanie nie może zależeć od tego, co jest na ekranie —
+inaczej sesje przestają być porównywalne.
+
+## Tempo
+
+**Pętla nie jest oparta na timerze.** Następne zapytanie po odebraniu poprzedniej odpowiedzi,
+z celowaniem w interwał z nastawy. Gdy obieg trwa dłużej niż interwał — **zero snu, zapytania
+nie kolejkują się**.
+
+Wszystkie stałe w tabeli 10.1 specu. **Domyślnej częstotliwości 4 Hz nie „optymalizuj" w górę.**
+
+---
+
+# Model temperatury oleju
+
+**To jest model, nie pomiar.** PID `5C` na tym aucie nie istnieje.
+
+```
+tauBase = 300 s              jedyny parametr do kalibracji termometrem IR
+
+target        = coolant + 25 * (load/100)
+loadFactor    = 0,6 + 0,8 * (load/100)
+ambientFactor = 1 + (20 - ambient) / 60
+tau           = clamp(tauBase * ambientFactor / loadFactor, 150, 900)
+alpha         = 1 - exp(-dt / tau)
+estimate     += alpha * (target - estimate)
+```
+
+Brak `ambient` → 20 °C. Obciążenie przycinane do 0…100.
+**Spadek PID `1F` o więcej niż 2 s** → nowy start silnika → reset do temperatury płynu.
+
+Pewność: `<180 s` niska, `180–600 s` średnia, `>600 s` dobra.
+
+**Wartość jest zawsze podpisana jako model, ze skalą pewności.** To nie jest ozdoba — to
+różnica między narzędziem diagnostycznym a ładnie wyglądającą liczbą.
+
+**To nie jest miejsce na „ulepszenie modelu".** Stałe pochodzą z działającej wersji i będą
+kalibrowane termometrem IR na misce olejowej w etapie 10.
+
+---
+
+# Reguły i alarmy
+
+Reguły przeglądu (tabela 10.4) i reguły alarmów (tabela 10.3) są **czystymi funkcjami**:
+wejście to zestaw odczytów, wyjście to lista wniosków albo alarmów. Karencja i odtwarzanie
+dźwięku są **osobno**, żeby reguły dały się testować bez dźwięku.
+
+**Brakująca wartość pomija regułę.** Nie zastępuj jej zerem ani wartością domyślną — reguła,
+która milczy przy braku danych, jest poprawna; reguła, która orzeka na podstawie wymyślonego
+zera, jest szkodliwa.
+
+Karencja liczona **per typ alarmu**, żeby jeden warunek nie zagłuszał innego.
+
+Progi zmieniamy **wyłącznie po pytaniu**. Są przetestowane na prawdziwym aucie.
+
+---
+
+# Decymacja
+
+**Koszyki minimum-maksimum, nigdy średnia.**
+
+```
+1. podziel widoczny zakres czasu na `koszyki` równych przedziałów
+2. dla każdego niepustego koszyka wyemituj DWA punkty:
+   (czas minimum, minimum) i (czas maksimum, maksimum), w kolejności czasowej
+3. koszyki puste pomiń
+4. gdy minimum i maksimum to ta sama próbka — jeden punkt
+```
+
+Uśrednianie wygładza dokładnie te skoki, dla których się na wykres patrzy. Test tego pilnujący
+jest **testem sensu całego algorytmu**: seria z pojedynczym ostrym skokiem po decymacji musi
+ten skok zachować, a po uśrednieniu by go straciła.

@@ -1,0 +1,192 @@
+---
+description: Kontrakt warstwy transportu i sesji ELM327 w i40-android — ramkowanie, szeregowanie poleceń, wybór transportu, atrapa.
+globs: app/src/main/kotlin/pl/i40/android/transport/**,app/src/main/kotlin/pl/i40/android/elm/**
+---
+
+# Kontrakt transportu i sesji ELM
+
+To jest warstwa, w której błąd objawia się jako **„czasem nie działa"**, a nie jako czerwony
+test. Trzy pułapki poniżej są prawdziwe, sprawdzone na działającym kodzie iOS i każda z nich
+kosztowała tam osobną poprawkę.
+
+## Interfejs — jedyny kontrakt ze sprzętem
+
+```kotlin
+interface Transport {
+    suspend fun open()
+    suspend fun close()
+    suspend fun write(bytes: ByteArray)
+    val chunks: Flow<ByteArray>
+    val disconnects: Flow<Unit>
+}
+```
+
+`BluetoothSocket`, `BluetoothGatt`, `BluetoothAdapter` i `java.net.Socket` **nie mają prawa
+wystąpić poza tym pakietem**. Reszta aplikacji widzi wyłącznie ten interfejs i nie wie, którym
+kablem płyną dane.
+
+---
+
+# Pułapka 1 — szeregowanie poleceń
+
+ELM327 **nie obsługuje potokowania**: drugie polecenie wysłane przed odpowiedzią na pierwsze
+psuje oba. Wymagane jest ścisłe „jedno polecenie w powietrzu" **oraz zachowanie kolejności**.
+
+**`Mutex` nie wystarczy.** Szereguje dostęp, ale korutyny czekające na mutex **nie tworzą
+kolejki FIFO**. Aplikacja diagnostyczna, w której polecenia wykonują się w innej kolejności niż
+wysłane, daje objaw nie do zdiagnozowania: odpowiedź na `0105` przypisana do `010C`.
+
+Poprawny wzorzec:
+
+```
+Channel<Zadanie>(UNLIMITED)  ──►  JEDNA długo żyjąca korutyna
+      ▲                                    │
+   send()                          wyślij → czekaj na pełną odpowiedź
+   zwraca                          → spełnij CompletableDeferred
+   Deferred                        → dopiero potem pobierz następne
+```
+
+`Channel` jest FIFO i to jest cała przyczyna tego wyboru.
+
+**Test szeregowania jest obowiązkowy i ma być napisany przed implementacją:** dziesięć poleceń
+wysłanych współbieżnie musi trafić do transportu pojedynczo **i w kolejności wysłania**.
+Implementacja na `Mutex` przechodzi część tego testu i oblewa kolejność — jeśli u Ciebie
+przechodzi cały za pierwszym razem, sprawdź, czy test naprawdę testuje współbieżność.
+
+---
+
+# Pułapka 2 — ramkowanie
+
+**Odpowiedź kończy znak zachęty `>` (0x3E), nie koniec linii.**
+
+Kawałki przychodzą pocięte: przy BLE zgodnie z MTU (około 20 bajtów), przy SPP zgodnie z tym,
+co akurat oddał `InputStream`. Jedna odpowiedź to zwykle kilka kawałków, a bywa, że dwie
+odpowiedzi trafiają w jeden.
+
+Bufor akumulować do napotkania `>`. **Pojedynczego kawałka nigdy nie parsować.**
+
+To dotyczy **tak samo SPP jak BLE**. Pokusa, żeby przy SPP „czytać linie", jest błędem —
+`InputStream.read` tnie równie nieprzewidywalnie jak notyfikacje GATT.
+
+Test obowiązkowy: odpowiedź pocięta w złych miejscach (`"41"`, `"05"`, `"5C\r\r>"`) musi dać
+jedną całość, a dwie odpowiedzi w jednym kawałku muszą się rozdzielić.
+
+---
+
+# Pułapka 3 — wyścig zapisu z oczekiwaniem
+
+**Bufor konsumujemy tylko wtedy, gdy ktoś czeka na odpowiedź.**
+
+Bez tego zapis kończący się szybciej niż zawieszenie na oczekiwaniu zjada ramkę, a polecenie
+wisi do timeoutu. Wyścig jest realny i przy BLE, i przy atrapie — w wersji iOS jest przy tym
+miejscu osobny komentarz, bo objawił się dopiero na sprzęcie.
+
+Praktycznie: waiter ustawiaj **synchronicznie przed** wysłaniem, a nie po nim. Jeśli w buforze
+już jest `>`, oddaj odpowiedź od razu, bez czekania.
+
+---
+
+# Ponowienia i timeouty
+
+Ponawiać **wyłącznie** po timeoucie oraz po `STOPPED` i `BUFFER FULL`.
+
+Pozostałe komunikaty przerywają. Ponawianie `UNABLE TO CONNECT` to pętla na głuchym łączu —
+zapłon jest wyłączony albo adaptera nie ma w gnieździe i kolejna próba niczego nie zmieni.
+
+| Kontekst | Timeout | Ponowienia |
+|---|---|---|
+| **Przegląd** | **25 s** | 2 |
+| Nagrywanie | 5 s | 1 |
+| Atrapa w testach | 5 s | 0 |
+
+**25 sekund przy przeglądzie nie jest pomyłką.** `ATZ` trwa około sekundy, a `SEARCHING...`
+przy pierwszej negocjacji protokołu potrafi ciągnąć się kilkanaście. Specyfikacja iOS mówi
+5 s, ale **działający kod używa 25** — to rozbieżność 5 z sekcji 3.1 specu i port z 5 s
+wywali się na pierwszym połączeniu z autem.
+
+# Komunikaty tekstowe
+
+Rozpoznawanie **po dokładnej treści linii** po przycięciu białych znaków, nie po podłańcuchu.
+`"NO DATA"` szukane jako podłańcuch trafi w dane heksadecymalne, które przypadkiem zawierają
+te znaki.
+
+| Komunikat | Reakcja |
+|---|---|
+| `NO DATA` | Oznacz pole niedostępne, kontynuuj |
+| `SEARCHING...` | Czekaj — właściwa odpowiedź może dojść po kilku sekundach |
+| `UNABLE TO CONNECT` | Przerwij — zapłon wyłączony lub adapter nie w gnieździe |
+| `BUS INIT: ERROR`, `CAN ERROR` | Przerwij |
+| `STOPPED`, `BUFFER FULL` | Ponów |
+| `?` | Adapter nie zrozumiał — błąd w kodzie, zaloguj |
+
+---
+
+# Transporty
+
+## SPP — najprostszy, ale wsparcie niepotwierdzone
+
+```
+UUID: 00001101-0000-1000-8000-00805F9B34FB
+```
+
+⚠️ **Wariant adaptera to prawdopodobnie `MC-IOS`, czyli BLE-only** — sekcja 3.4 specu.
+Zanim oprzesz cokolwiek na SPP, sprawdź `device.uuids` sparowanego urządzenia pod kątem
+`00001101-0000-1000-8000-00805F9B34FB`. Brak tego UUID-u oznacza, że SPP nie istnieje.
+
+Urządzenie z **`adapter.bondedDevices`, nie ze skanowania**. Adapter paruje się raz
+w ustawieniach systemu radia. To decyzja projektowa: znika `BLUETOOTH_SCAN` i cała ceremonia
+z uprawnieniem do lokalizacji.
+
+**Przed `connect()` zawsze `adapter.cancelDiscovery()`.** Bez tego połączenie potrafi zawisnąć
+bez żadnego błędu.
+
+Odczyt w korutynie na `Dispatchers.IO`. Ponowienie co 5 s **bez limitu prób** — adapter budzi
+się razem z autem, więc czekanie jest właściwym zachowaniem, nie błędem.
+
+## BLE — jedyny udowodniony po stronie adaptera
+
+Tak powstał zapis z auta i tak działa aplikacja na iPhonie.
+Prawdziwe UUID-y, odczytane z urządzenia:
+
+| Element | UUID |
+|---|---|
+| Usługa | `18F0` |
+| Zapis | `2AF1` |
+| Notyfikacja | `2AF0` |
+
+**Nie hardkoduj wyłącznie ich.** Wybór pary idzie przez `GattPairFinder`, w kolejności:
+znana kombinacja Vgate `2AF1`+`2AF0` → pierwsza para zapis+notyfikacja w obrębie jednej
+usługi → para z różnych usług jako ostatnia deska. Wynik wraca **z uzasadnieniem**, które
+trafia na ekran diagnostyczny.
+
+`GattPairFinder` jest **czystą funkcją i ma własne testy bez Androida.**
+
+Zapis przez `WRITE_TYPE_NO_RESPONSE`, gdy charakterystyka to obsługuje — klony ELM327 zwykle
+tego wymagają.
+
+## Wi-Fi — plan awaryjny
+
+Gniazdo TCP, domyślnie `192.168.0.10:35000`, adres konfigurowalny. Istnieje po to, żeby wynik
+testu na biurku zmieniał **jedną pozycję w ustawieniach**, a nie kształt kodu.
+
+---
+
+# Atrapa
+
+`MockTransport` **nie jest prostym „polecenie → tekst"**. Pięć zachowań, wszystkie obowiązkowe:
+
+1. **Porównanie polecenia bez względu na wielkość liter i spacje.**
+2. **Symulacja stanu echa:** `ATZ` i `ATE1` włączają echo, `ATE0` wyłącza. Wpis nagrany z echem
+   odtwarzany przy echu wyłączonym ma je obcięte — i odwrotnie. Bez tego atrapa rozjeżdża się
+   z prawdziwym adapterem po pierwszym `ATE0`.
+3. **Licznik powtórzeń:** drugie `0101` w przeglądzie dostaje **drugi** pasujący wpis skryptu.
+4. **Nieznane polecenie** → `?\r\r>`, jak w prawdziwym adapterze.
+5. **`drop()` budzi `disconnects`** — to inna ścieżka niż `close()`, i testy rozłączenia
+   w trakcie nagrywania z niej korzystają.
+
+`MockI40Script` to **zapis z prawdziwego auta z 2026-08-08**, nie makieta. Przenoszony
+dosłownie, łącznie z odpowiedzią na `0100` pociętą na trzy kawałki i z echem poleceń przed
+`ATE0`.
+
+**Nie „poprawiaj" żadnej odpowiedzi w skrypcie.** `015C` i `0A` zwracają `NO DATA` i to jest
+prawda o tym samochodzie, nie usterka zapisu.

@@ -1,0 +1,19 @@
+# Pliki wyłączone z indeksowania, ale nadal dostępne do otwarcia na żądanie.
+#
+# Uwaga: ten plik działa wyłącznie na ścieżki WEWNĄTRZ katalogu projektu. Kod Swift
+# wersji iOS leży poza nim (`../_github/ios-obd2-ble-diagnostics`) i nie da się go stąd
+# wykluczyć — dlatego zasada jego czytania jest opisana w `.cursor/rules/30-zrodla.mdc`,
+# a nie tutaj. Otwieraj ten katalog jako osobny workspace albo nie dołączaj go do tego.
+
+# Zapis z auta rozrośnie się po etapie 10 o prawdziwe odpowiedzi wielo-PID — kilkaset
+# linii heksu. Model ma go czytać celowo (reguła 30-zrodla wymaga sprawdzania możliwości
+# egzemplarza w masce, nie w pamięci), więc nie może trafić do .cursorignore.
+# Ale w wyszukiwaniu semantycznym to czysty szum.
+app/src/main/kotlin/pl/i40/android/transport/MockI40Script.kt
+
+# Słownik DTC: 41 wpisów par kod-opis. Czytany przez kod, nie przez człowieka.
+app/src/main/res/raw/dtc_dictionary.json
+
+# Zasoby graficzne i generowane
+app/src/main/res/mipmap-*/
+app/src/main/res/drawable-*/

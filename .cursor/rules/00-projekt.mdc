@@ -1,0 +1,327 @@
+---
+description: i40-android — niezmienniki architektury, styl kodu i dyscyplina testów. Obowiązuje w całym repo.
+alwaysApply: true
+---
+
+# i40-android — zasady projektu
+
+Projekt techniczny: `docs/spec/2026-08-14-i40-android-design.md`. To dokument nadrzędny.
+Warstwa diagnostyczna: `docs/spec/2026-08-14-i40-android-diagnostyka-design.md` — po etapie 8.
+Warstwa kontekstowa: `docs/spec/2026-08-14-i40-android-kontekst-design.md` — po D9.
+Warstwa odniesienia: `docs/spec/2026-08-14-i40-android-odniesienie-design.md` — po K6.
+Warstwa historii: `docs/spec/2026-08-15-i40-android-historia-design.md` — po O8.
+Warstwa objaśnień: `docs/spec/2026-08-15-i40-android-objasnienia-design.md` — po H7.
+Warstwa wyglądu: `docs/spec/2026-08-15-i40-android-wyglad-design.md` — po S4.
+Treść słownika: `docs/slownik.md` — **dokument źródłowy, nie do generowania**.
+Każda jawnie wymienia, co w poprzednich zmienia; poza tymi listami dokumenty wcześniejsze
+obowiązują bez zmian.
+
+**PID-y trybu 01 zapisujemy z prefiksem trybu: `0103`, `012E`, `010D`.** Tryby słownie —
+„tryb 03”, „tryb 09”. Bez tego `03` znaczy dwie różne rzeczy, a pomyłka daje odpowiedź,
+którą **da się sparsować** — czyli błąd bez objawu.
+Jeśli cokolwiek w tych zasadach jest sprzeczne ze specem — spec ma rację, a rozbieżność zgłoś.
+
+Bibliografia: `docs/zrodla.md`. Liczba, której nie da się zaczepić w jednym z tych źródeł,
+nie istnieje.
+
+---
+
+## STAN AKTUALNY — tabela nadrzędna
+
+**Ta sekcja jest nadrzędna wobec wszystkich tabel w specyfikacjach.** Siedem warstw dokumentów
+nadpisują się nawzajem, więc tabela w dokumencie bazowym albo w rozszerzeniu diagnostycznym
+może opisywać stan **sprzed** późniejszych zmian.
+
+Podział ról, obowiązujący bez wyjątku:
+
+| | Co jest tu | Co jest w specach |
+|---|---|---|
+| **Stan** — co obowiązuje **teraz** | ta sekcja | — |
+| **Uzasadnienie** — dlaczego tak | — | specyfikacje |
+
+Przy rozbieżności między tą tabelą a tabelą w specyfikacji: **wygrywa ta tabela, a rozbieżność
+zgłoś** — znaczy, że któreś rozszerzenie nie zaktualizowało tego miejsca.
+
+**Każde nowe rozszerzenie musi zaktualizować tę sekcję.** Zmiana zapisana wyłącznie w tabeli
+zmian rozszerzenia jest zmianą, której nikt nie znajdzie.
+
+### Poziomy odpytywania — pięć emiterów, zero kolizji
+
+| Poziom | Faza | Skład | Przy 4 Hz |
+|---|---|---|---|
+| **Gorący** | każdy cykl | `010D 0105 0104` **obowiązkowe** + **trzy** gniazda (domyślnie `010C 010E 0106`) | 4 Hz |
+| **Szybki A** | `n % 4 == 0` | `0123 010B 0111 014C 0149 0143` | ~1 Hz |
+| **Średni B** | `n % 10 == 5` | `013C 0144 012E 0103 0107 0142` | ~0,4 Hz |
+| **Wolny C** | `n % 20 == 13` | `011F 0146 010F 0133` (**dwa** miejsca wolne) | ~0,2 Hz |
+| **Kody błędów** | `n % 200 == 150` | **tryb 03** — jedno polecenie, nie multi-PID | ~0,02 Hz |
+
+**Nazwy z wcześniejszych warstw** — starsze dokumenty nazywają poziomy inaczej. Fazy się nie
+zmieniły, zmienił się skład, więc stara nazwa wskazuje właściwy poziom:
+
+| W starszych dokumentach | Teraz | Faza |
+|---|---|---|
+| pętla gorąca | gorący | każdy cykl |
+| — (nie istniał) | szybki **A** | `n % 4 == 0` |
+| pętla średnia *(warstwa diagnostyczna)* | średni **B** | `n % 10 == 5` |
+| rotacja zimna *(dokument bazowy)* | wolny **C** | `n % 20 == 13` |
+
+⚠️ Uwaga na **rotację zimną**: przed warstwą kontekstową stała na `n % 10 == 5`, teraz poziom
+wolny stoi na `n % 20 == 13`. Zdanie „rotacja zimna stoi na `n % 10 == 5`" w promptach
+diagnostycznych opisuje stan sprzed przebudowy — dziś na tej fazie stoi poziom **B**.
+
+Sprawdzone na 200 000 cykli: **zero cykli z trzema zapytaniami**.
+Zapytań na sekundę **5,62** przy suficie 25. Szczyt cyklu **140 ms** przy budżecie 250 ms.
+
+**Nastawa `Zrównoważona` 4 Hz jest domyślna i wiążąca.**
+
+⚠️ Tabele poziomów w bazowym (§10.2) i w rozszerzeniu diagnostycznym (§7.1) opisują stan
+**sprzed** przebudowy z rozszerzenia kontekstowego. Powyższa tabela je zastępuje.
+
+### Liczby, które łatwo pomylić
+
+| Co | Ile |
+|---|---|
+| PID-y obsługiwane przez to auto | **37** — ale patrz „`012F` w masce bez danych" niżej |
+| PID-y używane w jeździe | **22** |
+| PID-y wyświetlane (mają hasło) | **32** |
+| Kafle górnego paska | **4** — olej (model), płyn `0105`, napięcie `0142`, **korekta długa `0107`** |
+| Panele ekranu żywego | **6** — **Stan** (pierwszy), Podstawowy, Mieszanka, Wtrysk GDI, Termika, Powietrze |
+| Motywy | **2** — NOC (domyślny) i DZIEŃ; palety w §3 warstwy wyglądu |
+| Hasła słownika | **70** — 27 parametrów, 10 wyliczanych, 33 pojęcia; treść w `docs/slownik.md` |
+| Reguły werdyktu przeglądu | **17** — 14 bazowych + `GDI-1`, `KAT-1`, `MIX-1` |
+| Alarmy dźwiękowe | **5** — 4 bazowe + `KAT-2` |
+| Tabele w bazie | **3** — `przejazd`, `punkt_odniesienia`, `przeglad` |
+| **Wersja schematu bazy** | **3** — drabinka i `onUpgrade` w §11.2 warstwy historii |
+| Funkcje testowe w wersji iOS (cel minimalny) | **153** |
+
+### `012F` jest w masce i **nie daje danych** — poprawka P1
+
+Maska zgłasza `012F` (poziom paliwa) jako obsługiwany. **Auto zwraca zero niezależnie od stanu
+baku** — potwierdzone przez właściciela pojazdu 2026-08-16, zgodne z zapisem z 8 sierpnia
+i z brakiem danych na kaflu w wersji iOS.
+
+Konsekwencje, wiążące:
+
+| | |
+|---|---|
+| `012F` **nie jest odpytywany** | wypadł z poziomu wolnego C |
+| Poziom paliwa **nie jest nigdzie wyświetlany** | ani kafel, ani ekran odczytów, ani punkt odniesienia |
+| Czwarty kafel to **korekta długa `0107`** | pasmo −10 – +10 %, próg reguł `ltft_lean` / `ltft_rich` |
+| Rozbieżność 3 z §3.1 bazowego jest **zamknięta jako nienaprawialna** | nie „naprawiona jednym wpisem do rotacji", jak zakładał dokument bazowy |
+
+> **Bit w masce jest deklaracją, nie obietnicą danych.** To jedyny znany przypadek na tym
+> egzemplarzu, ale wystarczy jeden, żeby maski nie traktować jako dowodu. Kto dopisze `012F`
+> z powrotem, zamieni jedno zapytanie na dwa i dostanie w zamian zero.
+
+### Czwarty kafel przy pętli otwartej
+
+Korekty paliwa mają sens **wyłącznie w pętli zamkniętej** (`0103`). Gdy pętla jest otwarta —
+rozgrzewanie, pełny gaz, hamowanie silnikiem — kafel pokazuje **`— ○`**, nigdy liczby.
+Wiersz normy zostaje `−10 – +10`: norma nie przestaje istnieć dlatego, że odczyt jest chwilowo
+nieważny.
+
+`○` to **ustalony w tym projekcie znak „nieaktywne / niedostępne"** — ten sam, co przy punkcie
+odniesienia w ruchu (§10.1 warstwy odniesienia) i we wskaźniku paneli. Nie mylić z `⌀`, które
+znaczy **odczyt nieudany**. Różnica jest realna: `⌀` mówi „nie wiem", `○` mówi „wiem, ale ta
+liczba teraz nic nie znaczy".
+
+### Etapy realizacji
+
+```
+0 – 10        dokument bazowy            (8½ = pierwsza instalacja APK z atrapą)
+D1 – D10      rozszerzenie diagnostyczne  po etapie 8
+K1 – K7       rozszerzenie kontekstowe    po D9
+O1 – O8       rozszerzenie odniesienia    po K6
+H1 – H7       rozszerzenie historii       po O8
+S1 – S5       rozszerzenie objaśnień      po H7
+W1 – W5       rozszerzenie wyglądu        po S4
+```
+
+
+## Czym jest ten projekt
+
+Port działającej aplikacji `i40-check` z iOS na radio z Androidem w Hyundaiu i40.
+Obietnica, którą repo ma udowadniać swoją zawartością:
+
+> **Każda liczba pochodzi z pomiaru albo z nazwanego modelu. Nieudany odczyt mówi „—",
+> nigdy „0".**
+
+Powodem istnienia portu jest jedna rzecz: radio wstaje z zapłonem, więc **komplet przejazdów
+powstaje sam**, bez pamiętania o czymkolwiek. Wszystkie różnice wobec wersji iOS wynikają
+z tego jednego faktu albo z platformy.
+
+## Zasada, z której wynika architektura
+
+> **Wszystko powyżej transportu daje się przetestować bez auta.**
+
+Konsekwencja wiążąca dla kolejności pracy: **prawdziwy Bluetooth powstaje w etapie 9**,
+po całej logice i całym interfejsie. Fragment, którego nie da się przetestować automatycznie,
+ma być pojedynczym plikiem dopisywanym do gotowej i zweryfikowanej reszty.
+
+Druga zasada, specyficzna dla portu:
+
+> **Wierność dotyczy liczb, nie prozy.**
+
+Formuły, progi, stałe i algorytmy przenosimy **co do wartości**. Nazwy, układ plików i idiomy
+dostosowujemy do Kotlina. Przepisanie progu „z pamięci" daje błąd, którego nie widać na
+ekranie — dokładnie ten rodzaj, którego narzędzie diagnostyczne nie ma prawa popełniać.
+
+## Niezmienniki — nie łam ich nigdy
+
+1. **Nieudany odczyt to `—` z powodem, nigdy zero.** `0 °C` jest nieodróżnialne od prawdziwego
+   pomiaru. Wartość opcjonalna nie dostaje wartości domyślnej „dla wygody wyświetlania" —
+   brak wartości jest informacją i ma dojechać do ekranu jako brak.
+
+2. **Warstwy `obd/`, `acquisition/`, `rules/`, `alerts/AlertEngine`, `charts/` i
+   `service/TripStateMachine` są czyste.** Bez `android.*`, bez I/O, bez zegara systemowego,
+   bez losowości. Zegar jest wstrzykiwany. Import z `android.*` w tych pakietach to błąd
+   architektury, nie szczegół.
+
+3. **Zależności idą w jedną stronę:** `ui` → `service`/`checkup` → `storage`/`alerts` →
+   `acquisition`/`rules` → `obd` → `elm` → `transport`. Warstwa niższa nigdy nie wie o wyższej.
+
+4. **`transport/` jest jedynym miejscem, które dotyka sprzętu.** `BluetoothSocket`,
+   `BluetoothGatt`, `BluetoothAdapter` i `java.net.Socket` nie mają prawa wystąpić nigdzie
+   indziej. Reszta widzi wyłącznie interfejs `Transport`.
+
+5. **Pompa poleceń stoi na `Channel`, nigdy na `Mutex`.** `Mutex` szereguje dostęp, ale
+   korutyny czekające na niego **nie tworzą kolejki FIFO**. Polecenia diagnostyczne wykonane
+   w innej kolejności niż wysłane dają objaw nie do zdiagnozowania.
+
+6. **Odpowiedź ELM327 kończy znak `>`, nie koniec linii.** Bufor akumulujemy do napotkania
+   `>`. Pojedynczego kawałka nigdy nie parsujemy. Dotyczy tak samo SPP jak BLE — `InputStream`
+   tnie równie nieprzewidywalnie jak notyfikacje.
+
+7. **Katalog PID-ów jest jedynym źródłem długości danych.** Parser wielo-PID czyta numer,
+   sprawdza długość w katalogu i konsumuje tyle bajtów. Nieznany PID **kończy parsowanie** —
+   zgadnięcie długości przesuwa wszystkie kolejne bajty i produkuje wiarygodnie wyglądające
+   bzdury.
+
+8. **Bity `20 40 60 80` nie są PID-ami.** To znaczniki „jest następna maska" i trzeba je odjąć
+   ze zbioru obsługiwanych.
+
+9. **PID `5C`, `5E` i `10` nie są obsługiwane przez to auto.** Zdekodowane z prawdziwych masek,
+   sekcja 3.2 specu. Zostają w katalogu, bo katalog opisuje standard — ale **nie wolno ich
+   wstawiać do rotacji zimnej ani do pętli gorącej**. Temperatura oleju pochodzi z modelu.
+
+10. **`0D`, `05` i `04` nigdy nie wypadają z pętli gorącej.** Od `0D` zależy blokada
+    prędkościowa, od `05` alarm przegrzania, a od `04` **model temperatury oleju** — bez
+    obciążenia model cicho zamiera. Konfiguracja wykresów nie ma prawa ich wypchnąć;
+    gniazd konfigurowalnych jest **trzy**, nie cztery.
+
+11. **Osie Y wykresów przesuwnych są sztywne.** Skalowanie automatyczne jest tu błędem
+    projektowym, nie brakiem funkcji: przy stałych obrotach oś zawęża się do szumu i produkuje
+    dramatyczną krzywą z niczego.
+
+12. **Decymacja przez minimum i maksimum, nigdy przez średnią.** Uśrednianie wygładza dokładnie
+    te skoki, dla których się na wykres patrzy.
+
+13. **Zamykanie sesji zawsze zapisuje.** Rozłączenie, brak miejsca, ubicie usługi przez system —
+    sesja zostaje zamknięta i zapisana z tym, co zebrano. **Nigdy nie tracić danych.**
+
+13a. **Checkpoint co 30 s jest częścią punktu 13, nie dopracowaniem.** Wiersz przejazdu powstaje
+    przy starcie ze statusem `w_toku`; przy zabiciu procesu odzyskiwanie zamyka go jako
+    `odzyskany`. Bez tego punkt 13 jest nieprawdziwy, bo przy nagłym zabiciu nikt niczego nie
+    zamyka. Sekcja 11.4 specu.
+
+13b. **Stan żywy mieszka w usłudze, nie w `ViewModel`.** Bufory kołowe, gromadzony przebieg,
+    model oleju i karencje alarmów są polami `DriveService`. Przeniesienie ich do `ViewModel`
+    wygląda naturalniej w Compose i jest błędem: na radiu aplikacja prawie nigdy nie jest na
+    wierzchu, a pierwsze zniszczenie Activity skasowałoby okno wykresów.
+
+13c. **`PARTIAL_WAKE_LOCK` wyłącznie w stanie `Nagrywa`**, zwalniany w `finally`. Usługa
+    pierwszoplanowa chroni przed ubiciem procesu, nie przed uśpieniem procesora.
+
+14. **Temperatura oleju jest podpisana jako model, ze skalą pewności.** Nigdy nie prezentowana
+    jako pomiar. To różnica między narzędziem diagnostycznym a ładnie wyglądającą liczbą.
+
+14a0. **`norma` i `poprzednio` to dwie różne rzeczy.** Norma pochodzi z reguły albo ze źródła
+    i mówi, **ile powinno być**. `poprzednio` pochodzi z pomiarów tego egzemplarza i mówi,
+    **ile było**. Wartość z historii **nigdy** nie może zostać opisana jako norma — użytkownik,
+    który zobaczy `norma 705–714`, uzna, że tak ma być w tym modelu.
+
+14a. **Każda wyświetlana wartość ma obok pasmo odniesienia albo jawne `—`.** Kontrakt w sekcji
+    8.8 rozszerzenia diagnostycznego. Pusta kolumna normy jest błędem, nie brakiem funkcji.
+    Wszystkie progi w jednym obiekcie `PasmaOdniesienia` — reguły i widoki czytają z niego,
+    nie z własnych kopii.
+
+14b. **Pasmo pochodzi z reguły albo ze źródła. Nigdy nie powstaje na potrzeby wyświetlania.**
+    Pasmo narysowane „żeby ekran ładnie wyglądał" jest liczbą wymyśloną pokazaną jako norma —
+    groźniejszą niż zwykła wymyślona stała, bo użytkownik porównuje z nią swój samochód.
+
+14c. **Pasmo to nie alarm.** Przekroczenie pasma zmienia znacznik `▲` / `▼` i **nie wydaje
+    dźwięku**. Alarmuje wyłącznie pięć warunków krytycznych z tabeli 10.3. Bez tego rozdziału
+    aplikacja piszczy przy każdym zimnym silniku, a kierowca uczy się ignorować dźwięk —
+    łącznie z tym jednym, który znaczy „zatrzymaj się".
+
+15. **Treść odpowiedzi adaptera nie trafia do logu systemowego.** Wyłącznie znacznik czasu,
+    polecenie, długość odpowiedzi i czas obiegu. Pełny zapis istnieje tylko na ekranie
+    diagnostycznym, na żądanie użytkownika.
+
+16. **Nic nie wychodzi na zewnątrz.** Radio ma modem LTE i kartę SIM, a mimo to nie ma backendu,
+    telemetrii ani analityki. Jedyne użycie `INTERNET` to gniazdo TCP do adaptera w sieci
+    lokalnej.
+
+## Kod
+
+- Kotlin, `minSdk 31`, `targetSdk 34`. Korutyny, `Flow`, `StateFlow`.
+- `ktlint` czysty. Długość linii 120.
+- **Nazwy domenowe po polsku, styk z Androidem po angielsku.** `Przejazd`, `Werdykt`,
+  `Zastrzezenie`, `Alarm` — ale `onCreate`, `StateFlow`, `BluetoothSocket`. Skróty
+  z dokumentów technicznych w oryginale: `PID`, `DTC`, `VIN`, `ELM`, `MIL`, `MAF`.
+- **Wyjątek:** pliki będące dosłownym portem czystej logiki zachowują nazwy oryginału
+  (`SampleStream`, `TrackBlob`, `Decimator`, `RingBuffer`), żeby dało się je zestawić linia po
+  linii ze Swiftem przy szukaniu rozbieżności.
+- Komentarze i dokumentacja po polsku. Cały projekt jest polskojęzyczny.
+- `data class` dla wyników i migawek; niemutowalne.
+- Bez klas tam, gdzie wystarczy funkcja. Bez fabryk, bez wtyczek, bez warstw abstrakcji
+  „na przyszłość". YAGNI obowiązuje bezwzględnie.
+- Wartości opcjonalne jako `T?`. **Nie `orElse(0.0)`, nie `?: 0`** — patrz niezmiennik 1.
+
+## Zależności
+
+Dozwolone: `android.*`, `java.*`, `kotlinx.coroutines`, **Jetpack Compose**.
+
+Compose jest **odstępstwem nazwanym wprost** w sekcji 6.1 specu — na iOS SwiftUI jest częścią
+systemu, na Androidzie Compose jest biblioteką pakowaną do APK. Decyzja ma termin ważności
+do etapu 7.
+
+**Zabronione bez pytania:** Room (ciągnie KSP), `kotlinx-serialization`, jakakolwiek biblioteka
+wykresów, Hilt, Timber, Retrofit, OkHttp, biblioteki do dat.
+
+Baza to `SQLiteOpenHelper` — schemat ma jedną tabelę z dwiema kolumnami BLOB, więc Room to
+więcej konfiguracji niż kodu. JSON to `org.json` z frameworku. Wykresy to `Canvas`. Daty to
+`java.util.Calendar`.
+
+**Nie dodawaj żadnej innej biblioteki bez pytania.** Jeśli uważasz, że któraś jest potrzebna —
+zapytaj i uzasadnij.
+
+## Testy — dyscyplina TDD
+
+Kolejność jest obowiązkowa: **najpierw test, uruchom go i zobacz, jak nie przechodzi, potem
+implementacja.** Test, którego nie widziałeś jako czerwonego, nie jest testem — jest życzeniem.
+
+- Testy stoją w `test/`, nie w `androidTest/`. Cała warstwa czysta jest testowalna na JVM,
+  a emulator nie jest potrzebny do niczego poza transportem.
+- **Wersja iOS ma 153 funkcje testowe w 30 plikach. Port ma mieć nie mniej.**
+- **Nigdy nie osłabiaj asercji, żeby test przeszedł.** Jeśli test nie przechodzi, zepsuty jest
+  kod albo zepsute jest założenie testu — rozstrzygnij które, powiedz wprost i napraw właściwą
+  rzecz.
+- **Nie dobieraj danych testowych pod implementację.** Dane pochodzą z zapisu z auta albo
+  z tablic w sekcjach 9 i 10 specu, nie z tego, co akurat zwraca kod.
+- Testy, które pilnują sensu całego algorytmu i nie wolno ich rozluźnić:
+  **szeregowanie pompy**, **ramkowanie strumienia**, **decymacja min-max**,
+  **regresja masek PID-ów**, **skład pętli gorącej**, **maszyna stanów przejazdu**.
+
+## Jak pracujemy
+
+- **Jeden etap z sekcji 16 specu na raz.** Nie wybiegaj do przodu. Jeśli zauważysz, że coś
+  z późniejszego etapu byłoby teraz wygodne — powiedz o tym i zapytaj.
+- Po każdym etapie uruchom i **pokaż wynik**:
+  `./gradlew ktlintCheck ; if ($?) { ./gradlew lint } ; if ($?) { ./gradlew test }`
+  Nie twierdź, że etap jest gotowy, dopóki nie zobaczysz tego na własne oczy.
+- **Nie refaktoryzuj poprzednich etapów** bez wyraźnej prośby.
+- Jeśli spec jest w jakimś punkcie niejasny — **zapytaj**. Nie zgaduj i nie wymyślaj rozszerzeń.
+- Nie commituj i nie pushuj bez wyraźnej prośby.
+- `MockI40Script` z zapisem z auta **commitujemy** — to odpowiednik złotego korpusu. Bez niego
+  atrapa jest makietą, a testy sprawdzają wyobrażenie zamiast rzeczywistości.
