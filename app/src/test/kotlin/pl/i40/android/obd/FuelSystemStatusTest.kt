@@ -41,6 +41,21 @@ class FuelSystemStatusTest {
     }
 
     @Test
+    fun wierszEkranuZTabeli82() {
+        assertEquals("●", FuelSystemStatus.wierszEkranu(2).znaczek)
+        assertTrue(FuelSystemStatus.wierszEkranu(2).tytul.contains("ZAMKNIĘTA"))
+        assertEquals("○", FuelSystemStatus.wierszEkranu(1).znaczek)
+        assertEquals("○", FuelSystemStatus.wierszEkranu(4).znaczek)
+        assertEquals("✕", FuelSystemStatus.wierszEkranu(8).znaczek)
+        assertEquals("⚠", FuelSystemStatus.wierszEkranu(16).znaczek)
+        assertTrue(FuelSystemStatus.wierszEkranu(16).tytul.contains("ZAMKNIĘTA"))
+        assertEquals("—", FuelSystemStatus.wierszEkranu(0).znaczek)
+        assertEquals("?", FuelSystemStatus.wierszEkranu(3).znaczek)
+        assertTrue(FuelSystemStatus.wierszEkranu(3).tytul.contains("Nieznany"))
+        assertTrue(FuelSystemStatus.wierszEkranu(3).tytul.contains("3"))
+    }
+
+    @Test
     fun decodeCzytaBajtA() {
         val s = FuelSystemStatus.decode(listOf(2, 0))!!
         assertEquals(2, s.bajtA)

@@ -181,7 +181,16 @@ object PasmaOdniesienia {
         ),
         WpisPasma("dolot", 0x0F, RodzajPasma.Brak, null, null, "°C", "Zależy od temperatury otoczenia."),
         WpisPasma("otoczenie", 0x46, RodzajPasma.Brak, null, null, "°C", "Z definicji bez normy."),
-        WpisPasma("sonda_za_kat", 0x15, RodzajPasma.Brak, null, null, "", "PID bez formuły w katalogu, sekcja 3.2.")
+        WpisPasma("sonda_za_kat", 0x15, RodzajPasma.Brak, null, null, "", "PID bez formuły w katalogu, sekcja 3.2."),
+        WpisPasma(
+            "przedmuch",
+            0x2E,
+            RodzajPasma.Brak,
+            null,
+            null,
+            "%",
+            "Zadane przedmuchiwanie; tłumaczy skok korekty, osobnej normy brak."
+        )
     )
 
     fun wpisyDlaPid(pid: Int): List<WpisPasma> = wpisy.filter { it.pid == pid }

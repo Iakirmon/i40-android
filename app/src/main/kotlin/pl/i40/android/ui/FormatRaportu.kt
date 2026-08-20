@@ -92,7 +92,10 @@ object FormatRaportu {
             ),
             korektyPoza = WierszRaportu(
                 etykieta = "Korekty poza pasmem",
-                wartosc = pozaPasmem(p.czasPozaPasmemKorektSekundy, p.czasTrwaniaS),
+                wartosc = pozaPasmem(
+                    p.czasPozaPasmemWPetliZamknietejSekundy,
+                    p.czasWPetliZamknietejSekundy
+                ),
                 norma = "±${PasmaOdniesienia.sumaKorekt.endInclusive.toInt()} %"
             )
         )
@@ -112,9 +115,9 @@ object FormatRaportu {
         else -> emptyList()
     }
 
-    private fun pozaPasmem(pozaS: Double?, sesjaS: Double): String {
-        if (pozaS == null) return FormatPomiaru.NIEDOSTEPNE
-        return "${FormatTermika.czasMmSs(pozaS)}  z ${FormatTermika.czasMmSs(sesjaS)}"
+    private fun pozaPasmem(pozaS: Double?, mianownikS: Double?): String {
+        if (pozaS == null || mianownikS == null) return FormatPomiaru.NIEDOSTEPNE
+        return "${FormatTermika.czasMmSs(pozaS)}  z ${FormatTermika.czasMmSs(mianownikS)}"
     }
 
     private fun kraniec(value: Double, digits: Int): String =

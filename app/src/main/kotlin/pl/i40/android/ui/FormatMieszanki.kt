@@ -50,11 +50,14 @@ object FormatMieszanki {
         return "%.3f".format(java.util.Locale.US, v).replace('.', ',')
     }
 
-    fun pozaPasmemWiersz(pozaS: Double?, sesjaS: Double): String {
+    fun pozaPasmemWiersz(pozaS: Double?, czasWPetliS: Double?): String {
         val pasmo = normaSumy()
-        val poza = formatMmSs(pozaS ?: 0.0)
-        val sesja = formatMmSs(sesjaS)
-        return "Poza pasmem $pasmo %:  $poza z $sesja"
+        if (pozaS == null || czasWPetliS == null) {
+            return "Poza pasmem $pasmo %:  ${FormatPomiaru.NIEDOSTEPNE}\n(czas w pętli zamkniętej)"
+        }
+        val poza = formatMmSs(pozaS)
+        val mianownik = formatMmSs(czasWPetliS)
+        return "Poza pasmem $pasmo %:  $poza z $mianownik\n(czas w pętli zamkniętej)"
     }
 
     fun linieSumy(): List<Double> {

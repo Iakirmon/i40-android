@@ -26,7 +26,7 @@ class PasmaOdniesieniaTest {
             ),
             ids
         )
-        assertEquals(5, PasmaOdniesienia.wpisy.count { it.rodzaj == RodzajPasma.Brak })
+        assertEquals(6, PasmaOdniesienia.wpisy.count { it.rodzaj == RodzajPasma.Brak })
     }
 
     @Test
@@ -45,7 +45,7 @@ class PasmaOdniesieniaTest {
         val wyswietlane = (
             FormatKafla.KAFLI_DOMYSLNE +
                 FormatKaflaWykresow.PIDY_WYKRESOW +
-                listOf(0x23, 0x43, 0x11, 0x3C, 0x06, 0x0B, 0x0F, 0x46, 0x15, 0x44, 0x0D)
+                listOf(0x23, 0x43, 0x11, 0x3C, 0x06, 0x0B, 0x0F, 0x46, 0x15, 0x44, 0x0D, 0x2E)
             ).toSet()
         for (pid in wyswietlane) {
             assertTrue(
@@ -58,7 +58,7 @@ class PasmaOdniesieniaTest {
 
     @Test
     fun czteryBrakiNormyMajaUzasadnienie() {
-        for (id in listOf("zaplon", "kolektor", "dolot", "otoczenie")) {
+        for (id in listOf("zaplon", "kolektor", "dolot", "otoczenie", "przedmuch")) {
             val wpis = PasmaOdniesienia.wpisy.first { it.id == id }
             assertEquals(RodzajPasma.Brak, wpis.rodzaj)
             assertTrue(wpis.uzasadnienie.isNotBlank())

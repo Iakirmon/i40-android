@@ -91,6 +91,22 @@ class SessionRecorderTest {
         assertThrows<SessionRecorderError> { recorder.start() }
     }
 
+    @Test
+    fun zapisujeKodStatusuUkladuPaliwowego0103() {
+        val magazyn = PamiecPrzejazdow()
+        val recorder = SessionRecorder(magazyn, terazMs = { 0L })
+        recorder.start()
+        recorder.append(
+            SampleTick(
+                kind = SampleTick.Kind.Medium,
+                time = 1.0,
+                readings = listOf(MultiPidReading(0x03, listOf(2, 0), DecodedPid.Code(2)))
+            )
+        )
+        val seria = recorder.currentTrack().series.first { it.pid == 0x03 }
+        assertEquals(2.0f, seria.values.first())
+    }
+
     private fun tickPredkosc(t: Double, kmh: Double) = SampleTick(
         kind = SampleTick.Kind.Hot,
         time = t,

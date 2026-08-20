@@ -7,3 +7,15 @@ enum class PanelZywy(val etykieta: String) {
     WtryskGdi("WTRYSK GDI"),
     Termika("TERMIKA"),
 }
+
+/** Pięć kropek: piąta to miejsce na panel Powietrze (K4). */
+object WskaznikPaneli {
+    const val LICZBA_KROPEK = 5
+
+    fun tekst(aktywny: PanelZywy): String {
+        val kropki = (0 until LICZBA_KROPEK).joinToString(" ") { i ->
+            if (i == aktywny.ordinal) "●" else "○"
+        }
+        return "$kropki  ${aktywny.etykieta}"
+    }
+}

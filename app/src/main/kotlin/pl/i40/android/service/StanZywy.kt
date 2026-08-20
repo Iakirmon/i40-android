@@ -5,6 +5,8 @@ import pl.i40.android.acquisition.RingBufferStore
 import pl.i40.android.acquisition.RingSample
 import pl.i40.android.acquisition.SampleTick
 import pl.i40.android.obd.DecodedPid
+import pl.i40.android.obd.FuelSystemStatus
+import pl.i40.android.rules.PasmaOdniesienia
 
 /**
  * Stan żywy ekranu — kafle, ring, model oleju. Mieszka w usłudze, nie w ViewModel.
@@ -18,6 +20,9 @@ class StanZywy {
     var elapsedSeconds: Double = 0.0
     var measuredHz: Double = 0.0
     var totalQueries: Int = 0
+    var czasPozaPasmemWPetliZamknietejSekundy: Double = 0.0
+    var czasWPetliZamknietejSekundy: Double = 0.0
+    private var ostatniCzasLicznika: Double? = null
 
     fun wartosc(pid: Int): Double? {
         if (pid == PID_OLEJ) return olej.estimateC
@@ -27,6 +32,12 @@ class StanZywy {
     fun samples(pid: Int): List<RingSample> = ring.samples(pid)
 
     fun zastosuj(tick: SampleTick) {
+        if (nagrywa) {
+            val prev = ostatniCzasLicznika
+            if (prev != null) dodajOdstępLicznika(tick.time - prev)
+            ostatniCzasLicznika = tick.time
+            elapsedSeconds = tick.time
+        }
         var runtime: Double? = null
         for (reading in tick.readings) {
             if (reading.pid == PID_OLEJ) continue
@@ -41,7 +52,6 @@ class StanZywy {
         }
         uaktualnijOlej(tick.time, runtime)
         olej.estimateC?.let { ring.append(PID_OLEJ, tick.time, it) }
-        if (nagrywa) elapsedSeconds = tick.time
     }
 
     fun zastosuj(values: Map<Int, Double>, at: Double = 0.0) {
@@ -81,11 +91,13 @@ class StanZywy {
         wartosci = najnowsze.toMap(),
         serie = (
             FormatKaflaWykresow.PIDY_WYKRESOW +
-                listOf(0x06, 0x07, 0x44, 0x23, 0x43, 0x11, 0x3C, 0x05, 0x5C)
+                listOf(0x06, 0x07, 0x44, 0x23, 0x43, 0x11, 0x3C, 0x05, 0x5C, 0x2E, 0x03)
             ).associateWith { ring.samples(it) },
         elapsedSeconds = elapsedSeconds,
         hz = measuredHz,
-        queries = totalQueries
+        queries = totalQueries,
+        czasPozaPasmemWPetliZamknietejSekundy = czasPozaPasmemWPetliZamknietejSekundy,
+        czasWPetliZamknietejSekundy = czasWPetliZamknietejSekundy
     )
 
     private fun uaktualnijOlej(t: Double, runtimeSeconds: Double?) {
@@ -98,6 +110,23 @@ class StanZywy {
             ambientC = najnowsze[0x46],
             runtimeSeconds = runtimeSeconds ?: najnowsze[0x1F]
         )
+    }
+
+    fun resetLicznikowSesji() {
+        czasPozaPasmemWPetliZamknietejSekundy = 0.0
+        czasWPetliZamknietejSekundy = 0.0
+        ostatniCzasLicznika = null
+    }
+
+    private fun dodajOdstępLicznika(dt: Double) {
+        if (dt <= 0) return
+        val stft = najnowsze[0x06] ?: return
+        val ltft = najnowsze[0x07] ?: return
+        if (!FuelSystemStatus.korektyWazne(najnowsze[0x03]?.toInt())) return
+        czasWPetliZamknietejSekundy += dt
+        if (kotlin.math.abs(stft + ltft) > PasmaOdniesienia.sumaKorekt.endInclusive) {
+            czasPozaPasmemWPetliZamknietejSekundy += dt
+        }
     }
 
     companion object {
@@ -121,5 +150,7 @@ data class MigawkaZywego(
     val serie: Map<Int, List<RingSample>> = emptyMap(),
     val elapsedSeconds: Double = 0.0,
     val hz: Double = 0.0,
-    val queries: Int = 0
+    val queries: Int = 0,
+    val czasPozaPasmemWPetliZamknietejSekundy: Double? = null,
+    val czasWPetliZamknietejSekundy: Double? = null
 )

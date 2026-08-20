@@ -153,7 +153,11 @@ object PodsumowanieJson {
         o.put("obciazeniePrzyMaxCisnieniu", p.obciazeniePrzyMaxCisnieniu ?: JSONObject.NULL)
         o.put("maxTempKatalizatoraC", p.maxTempKatalizatoraC ?: JSONObject.NULL)
         o.put("czasDo90CSekundy", p.czasDo90CSekundy ?: JSONObject.NULL)
-        o.put("czasPozaPasmemKorektSekundy", p.czasPozaPasmemKorektSekundy ?: JSONObject.NULL)
+        o.put(
+            "czasPozaPasmemWPetliZamknietejSekundy",
+            p.czasPozaPasmemWPetliZamknietejSekundy ?: JSONObject.NULL
+        )
+        o.put("czasWPetliZamknietejSekundy", p.czasWPetliZamknietejSekundy ?: JSONObject.NULL)
         return o.toString().toByteArray(Charsets.UTF_8)
     }
 
@@ -177,7 +181,8 @@ object PodsumowanieJson {
             obciazeniePrzyMaxCisnieniu = o.optionalDouble("obciazeniePrzyMaxCisnieniu"),
             maxTempKatalizatoraC = o.optionalDouble("maxTempKatalizatoraC"),
             czasDo90CSekundy = o.optionalDouble("czasDo90CSekundy"),
-            czasPozaPasmemKorektSekundy = o.optionalDouble("czasPozaPasmemKorektSekundy")
+            czasPozaPasmemWPetliZamknietejSekundy = o.optionalDouble("czasPozaPasmemWPetliZamknietejSekundy"),
+            czasWPetliZamknietejSekundy = o.optionalDouble("czasWPetliZamknietejSekundy")
         )
     }
 

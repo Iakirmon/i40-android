@@ -63,8 +63,12 @@ class SessionRecorder(
             if (id == null) return
             val t = tick.time.toFloat()
             for (reading in tick.readings) {
-                val numeric = reading.decoded as? DecodedPid.Numeric ?: continue
-                track.append(reading.pid, t, numeric.value.toFloat())
+                val n = when (val d = reading.decoded) {
+                    is DecodedPid.Numeric -> d.value
+                    is DecodedPid.Code -> d.value.toDouble()
+                    else -> continue
+                }
+                track.append(reading.pid, t, n.toFloat())
             }
         }
     }

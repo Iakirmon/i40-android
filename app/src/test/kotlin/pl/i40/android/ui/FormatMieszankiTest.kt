@@ -36,4 +36,13 @@ class FormatMieszankiTest {
         assertEquals(12.0, suma[1].value)
         assertEquals(23.0, suma[2].value)
     }
+
+    @Test
+    fun pozaPasmemWierszDzieliPrzezCzasWPetliZamknietej() {
+        val text = FormatMieszanki.pozaPasmemWiersz(30.0, 600.0)
+        assertTrue(text.contains("0:30"))
+        assertTrue(text.contains("10:00"))
+        assertTrue(text.contains("pętli zamkniętej"))
+        assertFalse(text.contains("40:00"))
+    }
 }

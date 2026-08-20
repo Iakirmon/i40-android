@@ -1,5 +1,7 @@
 package pl.i40.android.storage
 
+import pl.i40.android.obd.FuelSystemStatus
+
 /** Podsumowanie sesji — liczone z przebiegu, bez ELM. Pola z §8.6 specu. */
 data class PodsumowaniePrzejazdu(
     val czasTrwaniaS: Double = 0.0,
@@ -19,7 +21,8 @@ data class PodsumowaniePrzejazdu(
     val obciazeniePrzyMaxCisnieniu: Double? = null,
     val maxTempKatalizatoraC: Double? = null,
     val czasDo90CSekundy: Double? = null,
-    val czasPozaPasmemKorektSekundy: Double? = null
+    val czasPozaPasmemWPetliZamknietejSekundy: Double? = null,
+    val czasWPetliZamknietejSekundy: Double? = null
 )
 
 object SummaryCalculator {
@@ -33,6 +36,7 @@ object SummaryCalculator {
     const val CATALYST_PID = 0x3C
     const val STFT_PID = 0x06
     const val LTFT_PID = 0x07
+    const val STATUS_PID = 0x03
 
     /** SAE J1979 PID `0123` jest w kPa; 1 bar = 100 kPa. `41230180` → 38,4 bar. */
     const val KPA_NA_BAR = 100.0
@@ -59,6 +63,8 @@ object SummaryCalculator {
         val catalyst = series(from, CATALYST_PID)
         val stft = series(from, STFT_PID)
         val ltft = series(from, LTFT_PID)
+        val status = series(from, STATUS_PID)
+        val czasyKorekt = czasyKorektWPetliZamknietej(stft, ltft, status)
         val sampleCount = from.series.sumOf { it.values.size }
         val hotSamples = speed?.values?.size ?: rpm?.values?.size ?: 0
         val averageHz = if (durationSeconds > 0 && hotSamples > 0) {
@@ -87,7 +93,8 @@ object SummaryCalculator {
             obciazeniePrzyMaxCisnieniu = czasMaxSzyny?.let { wartoscNajblizszaCzasowo(loadAbs, it) },
             maxTempKatalizatoraC = maxValue(catalyst?.values),
             czasDo90CSekundy = czasPierwszej(coolant, PROG_PLYN_90_C),
-            czasPozaPasmemKorektSekundy = czasPozaPasmemKorekt(stft, ltft)
+            czasPozaPasmemWPetliZamknietejSekundy = czasyKorekt?.first,
+            czasWPetliZamknietejSekundy = czasyKorekt?.second
         )
     }
 
@@ -140,12 +147,21 @@ object SummaryCalculator {
         return null
     }
 
-    private fun czasPozaPasmemKorekt(stft: TrackBlob.Series?, ltft: TrackBlob.Series?): Double? {
+    /**
+     * Suma odstępów poza ±20 % **tylko** gdy pętla jest zamknięta (`0103` ∈ {2, 16}).
+     * Mianownik to czas w pętli zamkniętej, nie czas sesji — §8.4 warstwy kontekstowej.
+     */
+    private fun czasyKorektWPetliZamknietej(
+        stft: TrackBlob.Series?,
+        ltft: TrackBlob.Series?,
+        status: TrackBlob.Series?
+    ): Pair<Double, Double>? {
         if (stft == null || ltft == null) return null
-        val times = (stft.times + ltft.times).toSortedSet()
-        if (times.size < 2) return 0.0
+        val times = (stft.times + ltft.times + (status?.times ?: emptyList())).toSortedSet()
+        if (times.size < 2) return 0.0 to 0.0
         val ordered = times.toList()
-        var suma = 0.0
+        var poza = 0.0
+        var zamknieta = 0.0
         for (i in 0 until ordered.lastIndex) {
             val t0 = ordered[i]
             val t1 = ordered[i + 1]
@@ -153,9 +169,12 @@ object SummaryCalculator {
             if (dt <= 0) continue
             val a = wartoscWCzasieLubPrzed(stft, t0) ?: continue
             val b = wartoscWCzasieLubPrzed(ltft, t0) ?: continue
-            if (kotlin.math.abs(a + b) > PROG_SUMY_KOREKT) suma += dt
+            val bajtA = status?.let { wartoscWCzasieLubPrzed(it, t0)?.toInt() }
+            if (!FuelSystemStatus.korektyWazne(bajtA)) continue
+            zamknieta += dt
+            if (kotlin.math.abs(a + b) > PROG_SUMY_KOREKT) poza += dt
         }
-        return suma
+        return poza to zamknieta
     }
 
     private fun wartoscWCzasieLubPrzed(s: TrackBlob.Series, t: Float): Double? {

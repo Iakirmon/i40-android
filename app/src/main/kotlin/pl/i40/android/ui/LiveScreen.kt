@@ -40,7 +40,7 @@ fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = 
             }
         }
         BasicText(
-            text = wskaznikPaneli(panel),
+            text = WskaznikPaneli.tekst(panel),
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = TextStyle(color = kolory.akcent, fontSize = 12.sp)
         )
@@ -88,10 +88,14 @@ fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = 
                         stft = migawka.wartosci[0x06],
                         ltft = migawka.wartosci[0x07],
                         lambda = migawka.wartosci[0x44],
+                        przedmuch = migawka.wartosci[0x2E],
+                        status0103 = migawka.wartosci[0x03]?.toInt(),
                         stftSamples = migawka.serie[0x06].orEmpty(),
                         ltftSamples = migawka.serie[0x07].orEmpty(),
-                        pozaPasmemS = null,
-                        sesjaS = migawka.elapsedSeconds,
+                        przedmuchSamples = migawka.serie[0x2E].orEmpty(),
+                        statusSamples = migawka.serie[0x03].orEmpty(),
+                        pozaPasmemS = migawka.czasPozaPasmemWPetliZamknietejSekundy,
+                        czasWPetliS = migawka.czasWPetliZamknietejSekundy,
                         modifier = Modifier.weight(1f)
                     )
                     PanelZywy.WtryskGdi -> PanelWtryskGdi(
@@ -114,11 +118,6 @@ fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = 
         }
         PasekStanu(migawka = migawka, onStop = onStop)
     }
-}
-
-private fun wskaznikPaneli(aktywny: PanelZywy): String {
-    val kropki = PanelZywy.entries.joinToString(" ") { if (it == aktywny) "●" else "○" }
-    return "$kropki  ${aktywny.etykieta}"
 }
 
 @Composable

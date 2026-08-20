@@ -101,6 +101,7 @@ class DriveService : Service() {
     fun wejdzWNagrywanie() {
         _stan.value = StanPrzejazdu.Nagrywa
         zywy.nagrywa = true
+        zywy.resetLicznikowSesji()
         if (wakeLock == null) {
             val pm = getSystemService(POWER_SERVICE) as PowerManager
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "i40:nagrywa").also {

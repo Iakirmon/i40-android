@@ -19,6 +19,8 @@ enum class StanPetliPaliwowej {
 
 data class StatusUkladuPaliwowego(val bajtA: Int, val bajtB: Int, val stan: StanPetliPaliwowej, val opis: String)
 
+data class WierszStatusuPetli(val znaczek: String, val tytul: String, val dopisek: String)
+
 object FuelSystemStatus {
     const val PID = 0x03
 
@@ -51,4 +53,21 @@ object FuelSystemStatus {
 
     /** Liczbę na kafel tylko po pozytywnym potwierdzeniu pętli zamkniętej. */
     fun korektyWazne(bajtA: Int?): Boolean = bajtA == 2 || bajtA == 16
+
+    /** Wiersz nad wykresem Mieszanka — tabela 8.2, nie długi opis dekodera. */
+    fun wierszEkranu(bajtA: Int?): WierszStatusuPetli = when (bajtA) {
+        2 -> WierszStatusuPetli("●", "PĘTLA ZAMKNIĘTA", "korekty ważne")
+        1 -> WierszStatusuPetli("○", "PĘTLA OTWARTA", "silnik za zimny")
+        4 -> WierszStatusuPetli("○", "PĘTLA OTWARTA", "pełne obciążenie lub hamowanie silnikiem")
+        8 -> WierszStatusuPetli("✕", "PĘTLA OTWARTA — awaria układu", "")
+        16 -> WierszStatusuPetli("⚠", "PĘTLA ZAMKNIĘTA — awaria sondy", "")
+        0 -> WierszStatusuPetli("—", "Silnik wyłączony", "")
+        null -> WierszStatusuPetli("—", "—", "")
+        else -> WierszStatusuPetli("?", "Nieznany status ($bajtA)", "")
+    }
+
+    fun tekstWierszaEkranu(bajtA: Int?): String {
+        val w = wierszEkranu(bajtA)
+        return if (w.dopisek.isEmpty()) "${w.znaczek} ${w.tytul}" else "${w.znaczek} ${w.tytul}          ${w.dopisek}"
+    }
 }

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -29,7 +30,8 @@ fun RollingChart(
     modifier: Modifier = Modifier,
     dziedzinaCzasu: ClosedFloatingPointRange<Double>? = null,
     tytul: String? = null,
-    linieOdniesienia: List<Double> = emptyList()
+    linieOdniesienia: List<Double> = emptyList(),
+    cienie: List<PasmoCienia> = emptyList()
 ) {
     val kolory = LocalI40Kolory.current
     val zakres = OsY.zakres(pid)
@@ -58,6 +60,16 @@ fun RollingChart(
             val h = size.height
             val span = (domena.endInclusive - domena.start).toFloat().coerceAtLeast(0.001f)
             val ySpan = (zakres.endInclusive - zakres.start).toFloat().coerceAtLeast(0.001f)
+            for (pasmo in cienie) {
+                val x0 = ((pasmo.start - domena.start) / span).toFloat().coerceIn(0f, 1f) * w
+                val x1 = ((pasmo.end - domena.start) / span).toFloat().coerceIn(0f, 1f) * w
+                if (x1 <= x0) continue
+                val kolor = when (pasmo.rodzaj) {
+                    RodzajCienia.Przedmuchiwanie -> kolory.akcent.copy(alpha = 0.18f)
+                    RodzajCienia.PetlaOtwarta -> kolory.tekstWyciszony.copy(alpha = 0.25f)
+                }
+                drawRect(color = kolor, topLeft = Offset(x0, 0f), size = Size(x1 - x0, h))
+            }
             for (linia in linieOdniesienia) {
                 val yn = ((linia - zakres.start) / ySpan).toFloat()
                 val y = (1f - yn.coerceIn(0f, 1f)) * h
