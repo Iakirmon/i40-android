@@ -1,6 +1,7 @@
 package pl.i40.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +26,8 @@ fun PanelPowietrze(
     zadanaSamples: List<RingSample>,
     rzeczywistaSamples: List<RingSample>,
     pedalSamples: List<RingSample>,
+    onPid: (Int) -> Unit = {},
+    onHaslo: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val kolory = LocalI40Kolory.current
@@ -36,7 +39,8 @@ fun PanelPowietrze(
             pid = FormatPowietrza.PID_PODCISNIENIE,
             samples = vacuum,
             tytul = FormatPowietrza.podpisWyliczone(),
-            wartoscNadpisana = FormatKafla.wartosc(FormatPowietrza.PID_PODCISNIENIE, biezace)
+            wartoscNadpisana = FormatKafla.wartosc(FormatPowietrza.PID_PODCISNIENIE, biezace),
+            onKlik = { onHaslo("podcisnienie") }
         )
         BasicText(
             text = "norma  ${FormatPowietrza.norma("podcisnienie")}",
@@ -47,7 +51,8 @@ fun PanelPowietrze(
             pid = FormatPowietrza.PID_RZECZYWISTA,
             samples = zadanaSamples,
             samplesDruga = rzeczywistaSamples,
-            tytul = "PRZEPUSTNICA        zadana ── rzeczyw. ┈┈"
+            tytul = "PRZEPUSTNICA        zadana ── rzeczyw. ┈┈",
+            onKlik = { onPid(0x11) }
         )
         BasicText(
             text = "zad. ${FormatKafla.wartosc(0x4C, zadana)}  rz. ${FormatKafla.wartosc(0x11, rzeczywista)}" +
@@ -63,12 +68,14 @@ fun PanelPowietrze(
         RollingChart(
             pid = FormatPowietrza.PID_PEDAL,
             samples = pedalSamples,
-            tytul = "PEDAŁ"
+            tytul = "PEDAŁ",
+            onKlik = { onPid(0x49) }
         )
         Row(Modifier.fillMaxWidth().padding(8.dp)) {
             BasicText(
                 text = "atmosferyczne  ${FormatKafla.wartosc(0x33, atmosfera)}" +
                     "  ·  kolektor ${FormatKafla.wartosc(0x0B, kolektor)}",
+                modifier = Modifier.clickable { onPid(0x33) },
                 style = TextStyle(color = kolory.tekstDrugi, fontSize = 12.sp)
             )
         }

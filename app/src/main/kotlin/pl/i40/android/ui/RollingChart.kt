@@ -1,6 +1,7 @@
 package pl.i40.android.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,7 +35,8 @@ fun RollingChart(
     linieOdniesienia: List<Double> = emptyList(),
     cienie: List<PasmoCienia> = emptyList(),
     samplesDruga: List<RingSample> = emptyList(),
-    wartoscNadpisana: String? = null
+    wartoscNadpisana: String? = null,
+    onKlik: (() -> Unit)? = null
 ) {
     val kolory = LocalI40Kolory.current
     val zakres = OsY.zakres(pid)
@@ -43,7 +45,12 @@ fun RollingChart(
     val przyciecie = biezaca?.let { OsY.przytnij(it, pid) }
 
     Column(modifier.fillMaxWidth().height(96.dp).padding(horizontal = 8.dp, vertical = 4.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .then(if (onKlik != null) Modifier.clickable(onClick = onKlik) else Modifier),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             BasicText(
                 text = tytul ?: FormatKafla.krotkaEtykieta(pid),
                 style = TextStyle(color = kolory.tekstDrugi, fontSize = 12.sp)

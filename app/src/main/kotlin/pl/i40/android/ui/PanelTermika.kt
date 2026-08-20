@@ -1,6 +1,7 @@
 package pl.i40.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ fun PanelTermika(
     olejPewnosc: OilTempEstimator.Pewnosc,
     dolot: Double?,
     otoczenie: Double?,
+    onPid: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val kolory = LocalI40Kolory.current
@@ -33,29 +35,32 @@ fun PanelTermika(
             pid = 0x3C,
             samples = katalizator,
             tytul = "KATALIZATOR",
-            linieOdniesienia = FormatTermika.linieKatalizatora()
+            linieOdniesienia = FormatTermika.linieKatalizatora(),
+            onKlik = { onPid(0x3C) }
         )
         RollingChart(
             pid = 0x05,
             samples = plyn,
             tytul = "PŁYN",
-            linieOdniesienia = FormatTermika.liniePlynu()
+            linieOdniesienia = FormatTermika.liniePlynu(),
+            onKlik = { onPid(0x05) }
         )
         RollingChart(
             pid = 0x5C,
             samples = olej,
             tytul = "OLEJ (model · ${olejPewnosc.label})",
-            linieOdniesienia = FormatTermika.linieOleju()
+            linieOdniesienia = FormatTermika.linieOleju(),
+            onKlik = { onPid(0x5C) }
         )
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             BasicText(
                 text = "DOLOT ${FormatKafla.wartosc(0x0F, dolot)}  norma ${FormatTermika.normaDolotu()}",
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).clickable { onPid(0x0F) },
                 style = TextStyle(color = kolory.tekstDrugi, fontSize = 12.sp)
             )
             BasicText(
                 text = "OTOCZ. ${FormatKafla.wartosc(0x46, otoczenie)}  norma ${FormatTermika.normaOtoczenia()}",
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).clickable { onPid(0x46) },
                 style = TextStyle(color = kolory.tekstDrugi, fontSize = 12.sp)
             )
         }

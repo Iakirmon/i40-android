@@ -33,7 +33,12 @@ import pl.i40.android.transport.MockI40Script
 import pl.i40.android.transport.MockTransport
 
 @Composable
-fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
+fun CheckupScreen(
+    wRuchu: Boolean,
+    onHaslo: (String) -> Unit = {},
+    onPid: (Int) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     val kolory = LocalI40Kolory.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -130,9 +135,9 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
                     style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
                 )
             }
-            KartaGdi(FormatPrzegladu.kartaGdi(r))
-            KartaKatalizator(FormatPrzegladu.kartaKatalizator(r))
-            KartaOdczytow(r, punkt)
+            KartaGdi(FormatPrzegladu.kartaGdi(r), onPid)
+            KartaKatalizator(FormatPrzegladu.kartaKatalizator(r), onPid)
+            KartaOdczytow(r, punkt, onPid, onHaslo)
         }
         if (wRuchu) {
             BasicText(
@@ -144,13 +149,13 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun KartaGdi(karta: KartaGdiPrzegladu) {
+private fun KartaGdi(karta: KartaGdiPrzegladu, onPid: (Int) -> Unit) {
     val kolory = LocalI40Kolory.current
     Column(Modifier.fillMaxWidth().padding(top = 16.dp).background(kolory.powierzchnia).padding(12.dp)) {
         BasicText("WTRYSK GDI", style = TextStyle(color = kolory.akcent, fontSize = 16.sp))
-        WierszKarty(karta.cisnienie)
-        WierszKarty(karta.obciazenie)
-        WierszKarty(karta.obroty)
+        WierszKarty(karta.cisnienie, onPid)
+        WierszKarty(karta.obciazenie, onPid)
+        WierszKarty(karta.obroty, onPid)
         BasicText(
             karta.stopka,
             modifier = Modifier.padding(top = 8.dp),
@@ -160,16 +165,16 @@ private fun KartaGdi(karta: KartaGdiPrzegladu) {
 }
 
 @Composable
-private fun KartaKatalizator(karta: KartaKatalizatorPrzegladu) {
+private fun KartaKatalizator(karta: KartaKatalizatorPrzegladu, onPid: (Int) -> Unit) {
     val kolory = LocalI40Kolory.current
     Column(Modifier.fillMaxWidth().padding(top = 16.dp).background(kolory.powierzchnia).padding(12.dp)) {
         BasicText("KATALIZATOR", style = TextStyle(color = kolory.akcent, fontSize = 16.sp))
-        WierszKarty(karta.temperatura)
+        WierszKarty(karta.temperatura, onPid)
         BasicText(
             "zapłon od  ${karta.zaplon}",
             style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
         )
-        WierszKarty(karta.sonda)
+        WierszKarty(karta.sonda, onPid)
         val powod = karta.sonda.powod
         if (powod != null) {
             BasicText(powod, style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp))
@@ -187,7 +192,12 @@ private fun KartaKatalizator(karta: KartaKatalizatorPrzegladu) {
 }
 
 @Composable
-private fun KartaOdczytow(raport: Raport, punkt: pl.i40.android.storage.PunktOdniesienia? = null) {
+private fun KartaOdczytow(
+    raport: Raport,
+    punkt: pl.i40.android.storage.PunktOdniesienia? = null,
+    onPid: (Int) -> Unit = {},
+    onHaslo: (String) -> Unit = {}
+) {
     val kolory = LocalI40Kolory.current
     val powietrze = FormatPrzegladu.grupaPowietrze(raport, punkt)
     val reszta = FormatPrzegladu.wierszeOdczytow(raport, punkt).filter { wiersz ->
@@ -214,28 +224,36 @@ private fun KartaOdczytow(raport: Raport, punkt: pl.i40.android.storage.PunktOdn
             style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
         )
         for (wiersz in powietrze) {
-            WierszKarty(wiersz)
+            WierszKarty(wiersz, onPid, onHaslo)
         }
         for (wiersz in reszta) {
-            WierszKarty(wiersz)
+            WierszKarty(wiersz, onPid, onHaslo)
         }
     }
 }
 
 @Composable
-private fun WierszKarty(wiersz: WierszPrzegladu) {
+private fun WierszKarty(wiersz: WierszPrzegladu, onPid: (Int) -> Unit = {}, onHaslo: (String) -> Unit = {}) {
     val kolory = LocalI40Kolory.current
-    BasicText(
-        text = "${wiersz.etykieta}  ${wiersz.wartosc}",
-        modifier = Modifier.padding(top = 6.dp),
-        style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
-    )
-    BasicText(
-        text = "poprzednio  ${wiersz.poprzednio}",
-        style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
-    )
-    BasicText(
-        text = "norma  ${wiersz.norma}",
-        style = TextStyle(color = kolory.tekstWyciszony, fontSize = 12.sp)
-    )
+    val klik: () -> Unit = {
+        val id = WejscieSlownika.idDlaWiersza(wiersz)
+        when {
+            id != null -> onHaslo(id)
+            wiersz.pid != null -> onPid(wiersz.pid)
+        }
+    }
+    Column(Modifier.clickable(onClick = klik).padding(top = 6.dp)) {
+        BasicText(
+            text = "${wiersz.etykieta}  ${wiersz.wartosc}",
+            style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
+        )
+        BasicText(
+            text = "poprzednio  ${wiersz.poprzednio}",
+            style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+        )
+        BasicText(
+            text = "norma  ${wiersz.norma}",
+            style = TextStyle(color = kolory.tekstWyciszony, fontSize = 12.sp)
+        )
+    }
 }

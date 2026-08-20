@@ -1,5 +1,6 @@
 package pl.i40.android.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +21,7 @@ import pl.i40.android.rules.RuleInput
 import pl.i40.android.service.MigawkaZywego
 
 @Composable
-fun PanelStan(migawka: MigawkaZywego, modifier: Modifier = Modifier) {
+fun PanelStan(migawka: MigawkaZywego, onPid: (Int) -> Unit = {}, modifier: Modifier = Modifier) {
     val kolory = LocalI40Kolory.current
     val odczytane = migawka.wartosci.keys + if (migawka.olejC != null) setOf(0x5C) else emptySet()
     val odczyty = migawka.wartosci.mapValues { (pid, v) ->
@@ -73,21 +74,25 @@ fun PanelStan(migawka: MigawkaZywego, modifier: Modifier = Modifier) {
             Spacer(Modifier.weight(1f))
         }
         for (w in widok.odchylenia) {
-            BasicText(
-                "${w.znacznik} ${w.zdanie}",
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                style = TextStyle(color = kolory.tekst, fontSize = 16.sp)
-            )
-            BasicText(
-                w.wartoscPasmo,
-                modifier = Modifier.fillMaxWidth(),
-                style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
-            )
-            BasicText(
-                w.skrot,
-                modifier = Modifier.fillMaxWidth(),
-                style = TextStyle(color = kolory.akcent, fontSize = 13.sp)
-            )
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onPid(w.pid) }
+                    .padding(top = 8.dp)
+            ) {
+                BasicText(
+                    "${w.znacznik} ${w.zdanie}",
+                    style = TextStyle(color = kolory.tekst, fontSize = 16.sp)
+                )
+                BasicText(
+                    w.wartoscPasmo,
+                    style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+                )
+                BasicText(
+                    w.skrot,
+                    style = TextStyle(color = kolory.akcent, fontSize = 13.sp)
+                )
+            }
         }
         if (widok.dalsze != null) {
             BasicText(widok.dalsze, style = TextStyle(color = kolory.tekstWyciszony, fontSize = 13.sp))

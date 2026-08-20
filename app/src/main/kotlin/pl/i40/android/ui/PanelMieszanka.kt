@@ -1,6 +1,7 @@
 package pl.i40.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +29,8 @@ fun PanelMieszanka(
     statusSamples: List<RingSample>,
     pozaPasmemS: Double?,
     czasWPetliS: Double?,
+    onPid: (Int) -> Unit = {},
+    onHaslo: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val kolory = LocalI40Kolory.current
@@ -42,7 +45,9 @@ fun PanelMieszanka(
     Column(modifier.fillMaxWidth().background(kolory.tlo)) {
         BasicText(
             text = FuelSystemStatus.tekstWierszaEkranu(status0103),
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier
+                .clickable { onPid(0x03) }
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
         )
         RollingChart(
@@ -50,7 +55,8 @@ fun PanelMieszanka(
             samples = probki,
             tytul = "KOREKTA RAZEM  norma ${FormatMieszanki.normaSumy()}",
             linieOdniesienia = FormatMieszanki.linieSumy(),
-            cienie = cienie
+            cienie = cienie,
+            onKlik = { onHaslo("suma-korekt") }
         )
         BasicText(
             text = "▓ przedmuchiwanie   ░ pętla otwarta",
@@ -62,12 +68,14 @@ fun PanelMieszanka(
                 etykieta = "KRÓTKA",
                 wartosc = FormatKafla.wartosc(0x06, stft),
                 norma = FormatMieszanki.normaKrotkiej(),
+                onKlik = { onPid(0x06) },
                 modifier = Modifier.weight(1f)
             )
             PoleMieszanki(
                 etykieta = "PRZEDMUCH.",
                 wartosc = FormatKafla.wartosc(0x2E, przedmuch),
                 norma = FormatPomiaru.NIEDOSTEPNE,
+                onKlik = { onPid(0x2E) },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -76,12 +84,14 @@ fun PanelMieszanka(
                 etykieta = "DŁUGA",
                 wartosc = FormatKafla.wartosc(0x07, ltft),
                 norma = "±${PasmaOdniesienia.korektaDluga.endInclusive.toInt()}",
+                onKlik = { onPid(0x07) },
                 modifier = Modifier.weight(1f)
             )
             PoleMieszanki(
                 etykieta = "LAMBDA ZAD.",
                 wartosc = FormatKafla.wartosc(0x44, lambda),
                 norma = FormatMieszanki.normaLambdy(),
+                onKlik = { onPid(0x44) },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -91,12 +101,15 @@ fun PanelMieszanka(
                 wartosc = FormatMieszanki.zaKatWartosc(),
                 norma = FormatPomiaru.NIEDOSTEPNE,
                 powod = FormatMieszanki.zaKatPowod(),
+                onKlik = { onHaslo("sonda-lambda") },
                 modifier = Modifier.weight(1f)
             )
         }
         BasicText(
             text = FormatMieszanki.pozaPasmemWiersz(pozaPasmemS, czasWPetliS),
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier
+                .clickable { onHaslo("czas-poza-pasmem-w-petli-zamknietej") }
+                .padding(8.dp),
             style = TextStyle(color = kolory.tekstDrugi, fontSize = 12.sp)
         )
     }
@@ -108,10 +121,11 @@ private fun PoleMieszanki(
     wartosc: String,
     norma: String,
     modifier: Modifier = Modifier,
-    powod: String? = null
+    powod: String? = null,
+    onKlik: () -> Unit = {}
 ) {
     val kolory = LocalI40Kolory.current
-    Column(modifier.padding(8.dp)) {
+    Column(modifier.clickable(onClick = onKlik).padding(8.dp)) {
         BasicText(text = "$etykieta    $wartosc", style = TextStyle(color = kolory.tekst, fontSize = 14.sp))
         BasicText(
             text = "norma  $norma",

@@ -45,6 +45,8 @@ fun HistoryScreen(
     onUsunWiele: (List<String>) -> Unit = {},
     onChroniony: (String, Boolean) -> Unit = { _, _ -> },
     punkty: List<PunktOdniesienia> = emptyList(),
+    onPid: (Int) -> Unit = {},
+    onHaslo: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val kolory = LocalI40Kolory.current
@@ -132,6 +134,8 @@ fun HistoryScreen(
             onUsun = { doPotwierdzenia = sesja },
             onChroniony = { onChroniony(sesja.id, it) },
             onPorownaj = { porownanie = sesja },
+            onPid = onPid,
+            onHaslo = onHaslo,
             modifier = modifier
         )
         return

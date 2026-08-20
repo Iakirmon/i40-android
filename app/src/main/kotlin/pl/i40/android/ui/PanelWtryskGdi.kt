@@ -20,7 +20,8 @@ fun PanelWtryskGdi(
     modifier: Modifier = Modifier,
     jalowy: Boolean = false,
     terazKpa: Double? = null,
-    punkty: List<pl.i40.android.storage.PunktOdniesienia> = emptyList()
+    punkty: List<pl.i40.android.storage.PunktOdniesienia> = emptyList(),
+    onPid: (Int) -> Unit = {}
 ) {
     val kolory = LocalI40Kolory.current
     val (maxBar, load) = FormatGdi.szczytSesji(szynaKpa, obciazenie)
@@ -29,19 +30,22 @@ fun PanelWtryskGdi(
             pid = FormatGdi.PID_SZYNA,
             samples = FormatGdi.probkiBar(szynaKpa),
             tytul = "CIŚNIENIE SZYNY",
-            linieOdniesienia = FormatGdi.linieSzyny()
+            linieOdniesienia = FormatGdi.linieSzyny(),
+            onKlik = { onPid(FormatGdi.PID_SZYNA) }
         )
         RollingChart(
             pid = FormatGdi.PID_OBCIAZENIE_ABS,
             samples = obciazenie,
             tytul = "OBCIĄŻENIE ABS.",
-            linieOdniesienia = FormatGdi.linieObciazenia()
+            linieOdniesienia = FormatGdi.linieObciazenia(),
+            onKlik = { onPid(FormatGdi.PID_OBCIAZENIE_ABS) }
         )
         RollingChart(
             pid = FormatGdi.PID_PRZEPUSTNICA,
             samples = przepustnica,
             tytul = "PRZEPUSTNICA",
-            linieOdniesienia = FormatGdi.liniePrzepustnicy()
+            linieOdniesienia = FormatGdi.liniePrzepustnicy(),
+            onKlik = { onPid(FormatGdi.PID_PRZEPUSTNICA) }
         )
         BasicText(
             text = FormatGdi.maxWiersz(maxBar, load),

@@ -31,6 +31,8 @@ fun SessionDetailScreen(
     onUsun: () -> Unit = {},
     onChroniony: (Boolean) -> Unit = {},
     onPorownaj: () -> Unit = {},
+    onPid: (Int) -> Unit = {},
+    onHaslo: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val kolory = LocalI40Kolory.current
@@ -53,10 +55,11 @@ fun SessionDetailScreen(
             "Czas ${FormatPomiaru.liczba(s.czasTrwaniaS, 0, "s")} · dystans ${
                 s.dystansKm?.let { FormatPomiaru.liczba(it, 1, "km") } ?: FormatPomiaru.NIEDOSTEPNE
             }",
+            modifier = Modifier.clickable { onHaslo("dystans") },
             style = TextStyle(color = kolory.tekst, fontSize = 16.sp)
         )
         for (wiersz in FormatRaportu.naglowek(s)) {
-            WierszRaportuUi(wiersz)
+            WierszRaportuUi(wiersz, onHaslo)
         }
         BasicText(
             "DIAGNOSTYKA",
@@ -64,10 +67,10 @@ fun SessionDetailScreen(
             style = TextStyle(color = kolory.akcent, fontSize = 16.sp)
         )
         val diag = FormatRaportu.diagnostyka(s)
-        WierszRaportuUi(diag.cisnienie)
-        WierszRaportuUi(diag.katalizator)
-        WierszRaportuUi(diag.plyn90)
-        WierszRaportuUi(diag.korektyPoza)
+        WierszRaportuUi(diag.cisnienie, onHaslo)
+        WierszRaportuUi(diag.katalizator, onHaslo)
+        WierszRaportuUi(diag.plyn90, onHaslo)
+        WierszRaportuUi(diag.korektyPoza, onHaslo)
         val suwakTekst = FormatPomiaru.liczba(model.czasSuwaka.toDouble(), 1, "s")
         BasicText("Suwak $suwakTekst", style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp))
         for (seria in model.stosWykresow) {
@@ -89,7 +92,11 @@ fun SessionDetailScreen(
                     samples = samples,
                     modifier = Modifier.height(110.dp),
                     dziedzinaCzasu = model.okno.start.toDouble()..model.okno.endInclusive.toDouble(),
-                    linieOdniesienia = FormatRaportu.linieWykresu(seria.pid)
+                    linieOdniesienia = FormatRaportu.linieWykresu(seria.pid),
+                    onKlik = {
+                        WejscieSlownika.idDlaPid(seria.pid)?.let(onHaslo)
+                            ?: onPid(seria.pid)
+                    }
                 )
                 BasicText(
                     FormatRaportu.wartoscWykresu(seria.pid, scrub),
@@ -121,17 +128,20 @@ fun SessionDetailScreen(
 }
 
 @Composable
-private fun WierszRaportuUi(wiersz: WierszRaportu) {
+private fun WierszRaportuUi(wiersz: WierszRaportu, onHaslo: (String) -> Unit = {}) {
     val kolory = LocalI40Kolory.current
     val znacznik = if (wiersz.znacznik.isEmpty()) "" else " ${wiersz.znacznik}"
-    BasicText(
-        text = "${wiersz.etykieta}  ${wiersz.wartosc}$znacznik",
-        style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
-    )
-    BasicText(
-        text = "norma  ${wiersz.norma}",
-        style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
-    )
+    val klik = wiersz.hasloId?.let { id -> Modifier.clickable { onHaslo(id) } } ?: Modifier
+    Column(klik.padding(top = 4.dp)) {
+        BasicText(
+            text = "${wiersz.etykieta}  ${wiersz.wartosc}$znacznik",
+            style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
+        )
+        BasicText(
+            text = "norma  ${wiersz.norma}",
+            style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+        )
+    }
 }
 
 private fun Przejazd.startMs(): Long = poczatekMs

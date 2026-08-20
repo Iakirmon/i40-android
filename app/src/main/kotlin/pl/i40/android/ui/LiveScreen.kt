@@ -34,14 +34,21 @@ fun LiveScreen(
     migawka: MigawkaZywego,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
-    punkty: List<pl.i40.android.storage.PunktOdniesienia> = emptyList()
+    punkty: List<pl.i40.android.storage.PunktOdniesienia> = emptyList(),
+    onPid: (Int) -> Unit = {},
+    onHaslo: (String) -> Unit = {}
 ) {
     val kolory = LocalI40Kolory.current
     var panel by remember { mutableStateOf(PanelZywy.Stan) }
-    Column(modifier.fillMaxSize().background(kolory.tlo)) {
+    Column(Modifier.fillMaxSize().background(kolory.tlo)) {
         Row(Modifier.fillMaxWidth()) {
             for (pid in FormatKafla.KAFLI_DOMYSLNE) {
-                Kafel(pid = pid, migawka = migawka, modifier = Modifier.weight(1f))
+                Kafel(
+                    pid = pid,
+                    migawka = migawka,
+                    onKlik = { onPid(pid) },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
         BasicText(
@@ -80,7 +87,11 @@ fun LiveScreen(
         ) {
             Column(Modifier.fillMaxSize()) {
                 when (panel) {
-                    PanelZywy.Stan -> PanelStan(migawka = migawka, modifier = Modifier.fillMaxSize())
+                    PanelZywy.Stan -> PanelStan(
+                        migawka = migawka,
+                        onPid = onPid,
+                        modifier = Modifier.fillMaxSize()
+                    )
                     PanelZywy.Podstawowy -> {
                         val wierszStanu = if (migawka.jalowyRozgrzany) {
                             "● JAŁOWY ROZGRZANY — punkt odniesienia"
@@ -103,7 +114,9 @@ fun LiveScreen(
                                 )
                                 BasicText(
                                     text = "${FormatKafla.krotkaEtykieta(pid)}  $teraz",
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    modifier = Modifier
+                                        .clickable { onPid(pid) }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
                                     style = TextStyle(color = kolory.tekst, fontSize = 18.sp)
                                 )
                                 BasicText(
@@ -117,6 +130,7 @@ fun LiveScreen(
                                 RollingChart(
                                     pid = pid,
                                     samples = migawka.serie[pid].orEmpty(),
+                                    onKlik = { onPid(pid) },
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -134,6 +148,8 @@ fun LiveScreen(
                         statusSamples = migawka.serie[0x03].orEmpty(),
                         pozaPasmemS = migawka.czasPozaPasmemWPetliZamknietejSekundy,
                         czasWPetliS = migawka.czasWPetliZamknietejSekundy,
+                        onPid = onPid,
+                        onHaslo = onHaslo,
                         modifier = Modifier.weight(1f)
                     )
                     PanelZywy.WtryskGdi -> PanelWtryskGdi(
@@ -143,6 +159,7 @@ fun LiveScreen(
                         jalowy = migawka.jalowyRozgrzany,
                         terazKpa = migawka.wartosci[0x23],
                         punkty = punkty,
+                        onPid = onPid,
                         modifier = Modifier.weight(1f)
                     )
                     PanelZywy.Termika -> PanelTermika(
@@ -152,6 +169,7 @@ fun LiveScreen(
                         olejPewnosc = migawka.olejPewnosc,
                         dolot = migawka.wartosci[0x0F],
                         otoczenie = migawka.wartosci[0x46],
+                        onPid = onPid,
                         modifier = Modifier.weight(1f)
                     )
                     PanelZywy.Powietrze -> PanelPowietrze(
@@ -165,6 +183,8 @@ fun LiveScreen(
                         zadanaSamples = migawka.serie[0x4C].orEmpty(),
                         rzeczywistaSamples = migawka.serie[0x11].orEmpty(),
                         pedalSamples = migawka.serie[0x49].orEmpty(),
+                        onPid = onPid,
+                        onHaslo = onHaslo,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -175,7 +195,7 @@ fun LiveScreen(
 }
 
 @Composable
-private fun Kafel(pid: Int, migawka: MigawkaZywego, modifier: Modifier) {
+private fun Kafel(pid: Int, migawka: MigawkaZywego, onKlik: () -> Unit, modifier: Modifier) {
     val kolory = LocalI40Kolory.current
     val olej = pid == FormatKafla.PID_OLEJ_MODEL
     val wartosc = if (olej) {
@@ -186,7 +206,13 @@ private fun Kafel(pid: Int, migawka: MigawkaZywego, modifier: Modifier) {
         FormatKafla.wartosc(pid, migawka.wartosci[pid])
     }
     val podpis = if (olej) FormatKafla.olejPodpis(migawka.olejPewnosc) else FormatKafla.podpisZakresu(pid)
-    Column(modifier.padding(6.dp).background(kolory.powierzchnia).padding(8.dp)) {
+    Column(
+        modifier
+            .clickable(onClick = onKlik)
+            .padding(6.dp)
+            .background(kolory.powierzchnia)
+            .padding(8.dp)
+    ) {
         BasicText(
             text = wartosc,
             style = TextStyle(

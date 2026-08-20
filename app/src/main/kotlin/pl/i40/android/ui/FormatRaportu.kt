@@ -3,7 +3,13 @@ package pl.i40.android.ui
 import pl.i40.android.rules.PasmaOdniesienia
 import pl.i40.android.storage.PodsumowaniePrzejazdu
 
-data class WierszRaportu(val etykieta: String, val wartosc: String, val norma: String, val znacznik: String = "")
+data class WierszRaportu(
+    val etykieta: String,
+    val wartosc: String,
+    val norma: String,
+    val znacznik: String = "",
+    val hasloId: String? = null
+)
 
 data class BlokDiagnostyka(
     val cisnienie: WierszRaportu,
@@ -38,24 +44,28 @@ object FormatRaportu {
             WierszRaportu(
                 etykieta = "Max obroty",
                 wartosc = FormatPomiaru.liczba(p.maxObroty, 0),
-                norma = FormatPomiaru.NIEDOSTEPNE
+                norma = FormatPomiaru.NIEDOSTEPNE,
+                hasloId = "obroty-silnika"
             ),
             WierszRaportu(
                 etykieta = "Max płyn",
                 wartosc = FormatPomiaru.liczba(p.maxPlynC, 0, "°C"),
                 norma = "${plynPasmo.start.toInt()} – ${plynPasmo.endInclusive.toInt()}",
-                znacznik = znacznik(p.maxPlynC, plynPasmo)
+                znacznik = znacznik(p.maxPlynC, plynPasmo),
+                hasloId = "temperatura-plynu-chlodzacego"
             ),
             WierszRaportu(
                 etykieta = "Max prędkość",
                 wartosc = FormatPomiaru.liczba(p.maxPredkoscKmh, 0, "km/h"),
-                norma = FormatPomiaru.NIEDOSTEPNE
+                norma = FormatPomiaru.NIEDOSTEPNE,
+                hasloId = "predkosc-pojazdu"
             ),
             WierszRaportu(
                 etykieta = "Napięcie",
                 wartosc = napiecieTekst,
                 norma = "${kraniec(napieciePasmo.start, 1)} – ${kraniec(napieciePasmo.endInclusive, 1)}",
-                znacznik = znacznik(napiecieDoZnacznika, napieciePasmo)
+                znacznik = znacznik(napiecieDoZnacznika, napieciePasmo),
+                hasloId = "napiecie-sterownika"
             )
         )
     }
@@ -77,18 +87,21 @@ object FormatRaportu {
                 etykieta = "Max ciśnienie szyny",
                 wartosc = cisnienieTekst,
                 norma = "${szyna.start.toInt()} – ${szyna.endInclusive.toInt()} bar",
-                znacznik = znacznik(p.maxCisnienieSzynyBar, szyna)
+                znacznik = znacznik(p.maxCisnienieSzynyBar, szyna),
+                hasloId = "maksymalne-cisnienie-szyny-i-obciazenie-przy-nim"
             ),
             katalizator = WierszRaportu(
                 etykieta = "Max temp. katalizatora",
                 wartosc = FormatPomiaru.liczba(p.maxTempKatalizatoraC, 0, "°C"),
                 norma = "${kat.start.toInt()} – ${kat.endInclusive.toInt()} °C",
-                znacznik = znacznik(p.maxTempKatalizatoraC, kat)
+                znacznik = znacznik(p.maxTempKatalizatoraC, kat),
+                hasloId = "temperatura-katalizatora"
             ),
             plyn90 = WierszRaportu(
                 etykieta = "Płyn 90 °C po",
                 wartosc = FormatTermika.czasMmSs(p.czasDo90CSekundy),
-                norma = FormatPomiaru.NIEDOSTEPNE
+                norma = FormatPomiaru.NIEDOSTEPNE,
+                hasloId = "czas-do-90-c"
             ),
             korektyPoza = WierszRaportu(
                 etykieta = "Korekty poza pasmem",
@@ -96,7 +109,8 @@ object FormatRaportu {
                     p.czasPozaPasmemWPetliZamknietejSekundy,
                     p.czasWPetliZamknietejSekundy
                 ),
-                norma = "±${PasmaOdniesienia.sumaKorekt.endInclusive.toInt()} %"
+                norma = "±${PasmaOdniesienia.sumaKorekt.endInclusive.toInt()} %",
+                hasloId = "czas-poza-pasmem-w-petli-zamknietej"
             )
         )
     }
