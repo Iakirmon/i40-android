@@ -14,7 +14,12 @@ data class PodsumowaniePrzejazdu(
     val kodyNaStarcie: List<String> = emptyList(),
     val kodyNaKoncu: List<String> = emptyList(),
     val liczbaProbek: Int = 0,
-    val sredniaHz: Double = 0.0
+    val sredniaHz: Double = 0.0,
+    val maxCisnienieSzynyBar: Double? = null,
+    val obciazeniePrzyMaxCisnieniu: Double? = null,
+    val maxTempKatalizatoraC: Double? = null,
+    val czasDo90CSekundy: Double? = null,
+    val czasPozaPasmemKorektSekundy: Double? = null
 )
 
 object SummaryCalculator {
@@ -23,6 +28,20 @@ object SummaryCalculator {
     const val COOLANT_PID = 0x05
     const val VOLTAGE_PID = 0x42
     const val FUEL_RATE_PID = 0x5E
+    const val RAIL_PID = 0x23
+    const val LOAD_ABS_PID = 0x43
+    const val CATALYST_PID = 0x3C
+    const val STFT_PID = 0x06
+    const val LTFT_PID = 0x07
+
+    /** SAE J1979 PID `0123` jest w kPa; 1 bar = 100 kPa. `41230180` → 38,4 bar. */
+    const val KPA_NA_BAR = 100.0
+
+    /** Pierwsza próbka `0105` ≥ 90 °C — §11.1 warstwy diagnostycznej. */
+    const val PROG_PLYN_90_C = 90.0
+
+    /** Próg reguły `trim_sum` i pasma sumy korekt — §11.1, nie ±10 % korekty długiej. */
+    const val PROG_SUMY_KOREKT = 20.0
 
     fun make(
         from: TrackBlob,
@@ -35,6 +54,11 @@ object SummaryCalculator {
         val coolant = series(from, COOLANT_PID)
         val voltage = series(from, VOLTAGE_PID)
         val fuel = series(from, FUEL_RATE_PID)
+        val rail = series(from, RAIL_PID)
+        val loadAbs = series(from, LOAD_ABS_PID)
+        val catalyst = series(from, CATALYST_PID)
+        val stft = series(from, STFT_PID)
+        val ltft = series(from, LTFT_PID)
         val sampleCount = from.series.sumOf { it.values.size }
         val hotSamples = speed?.values?.size ?: rpm?.values?.size ?: 0
         val averageHz = if (durationSeconds > 0 && hotSamples > 0) {
@@ -42,6 +66,9 @@ object SummaryCalculator {
         } else {
             0.0
         }
+        val maxRailKpa = maxValue(rail?.values)
+        val maxRailBar = maxRailKpa?.div(KPA_NA_BAR)
+        val czasMaxSzyny = czasMaksimum(rail)
         return PodsumowaniePrzejazdu(
             czasTrwaniaS = durationSeconds,
             dystansKm = integrateRateToQuantity(speed?.times, speed?.values),
@@ -55,7 +82,12 @@ object SummaryCalculator {
             kodyNaStarcie = kodyNaStarcie,
             kodyNaKoncu = kodyNaKoncu,
             liczbaProbek = sampleCount,
-            sredniaHz = averageHz
+            sredniaHz = averageHz,
+            maxCisnienieSzynyBar = maxRailBar,
+            obciazeniePrzyMaxCisnieniu = czasMaxSzyny?.let { wartoscNajblizszaCzasowo(loadAbs, it) },
+            maxTempKatalizatoraC = maxValue(catalyst?.values),
+            czasDo90CSekundy = czasPierwszej(coolant, PROG_PLYN_90_C),
+            czasPozaPasmemKorektSekundy = czasPozaPasmemKorekt(stft, ltft)
         )
     }
 
@@ -75,6 +107,64 @@ object SummaryCalculator {
     }
 
     private fun series(track: TrackBlob, pid: Int): TrackBlob.Series? = track.series.firstOrNull { it.pid == pid }
+
+    private fun czasMaksimum(s: TrackBlob.Series?): Float? {
+        if (s == null || s.values.isEmpty()) return null
+        var best = 0
+        for (i in 1 until s.values.size) {
+            if (s.values[i] > s.values[best]) best = i
+        }
+        return s.times[best]
+    }
+
+    /** Przy remisie zostaje wcześniejsza próbka — indeks nie ma prawa decydować. */
+    private fun wartoscNajblizszaCzasowo(s: TrackBlob.Series?, t: Float): Double? {
+        if (s == null || s.times.isEmpty()) return null
+        var best = 0
+        var bestD = kotlin.math.abs(s.times[0] - t)
+        for (i in 1 until s.times.size) {
+            val d = kotlin.math.abs(s.times[i] - t)
+            if (d < bestD) {
+                bestD = d
+                best = i
+            }
+        }
+        return s.values[best].toDouble()
+    }
+
+    private fun czasPierwszej(s: TrackBlob.Series?, prog: Double): Double? {
+        if (s == null) return null
+        for (i in s.values.indices) {
+            if (s.values[i] >= prog) return s.times[i].toDouble()
+        }
+        return null
+    }
+
+    private fun czasPozaPasmemKorekt(stft: TrackBlob.Series?, ltft: TrackBlob.Series?): Double? {
+        if (stft == null || ltft == null) return null
+        val times = (stft.times + ltft.times).toSortedSet()
+        if (times.size < 2) return 0.0
+        val ordered = times.toList()
+        var suma = 0.0
+        for (i in 0 until ordered.lastIndex) {
+            val t0 = ordered[i]
+            val t1 = ordered[i + 1]
+            val dt = (t1 - t0).toDouble()
+            if (dt <= 0) continue
+            val a = wartoscWCzasieLubPrzed(stft, t0) ?: continue
+            val b = wartoscWCzasieLubPrzed(ltft, t0) ?: continue
+            if (kotlin.math.abs(a + b) > PROG_SUMY_KOREKT) suma += dt
+        }
+        return suma
+    }
+
+    private fun wartoscWCzasieLubPrzed(s: TrackBlob.Series, t: Float): Double? {
+        var last: Double? = null
+        for (i in s.times.indices) {
+            if (s.times[i] <= t) last = s.values[i].toDouble() else break
+        }
+        return last
+    }
 
     private fun maxValue(values: List<Float>?): Double? = values?.maxOrNull()?.toDouble()
 

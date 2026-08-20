@@ -149,6 +149,11 @@ object PodsumowanieJson {
         o.put("kodyNaKoncu", JSONArray(p.kodyNaKoncu))
         o.put("liczbaProbek", p.liczbaProbek)
         o.put("sredniaHz", p.sredniaHz)
+        o.put("maxCisnienieSzynyBar", p.maxCisnienieSzynyBar ?: JSONObject.NULL)
+        o.put("obciazeniePrzyMaxCisnieniu", p.obciazeniePrzyMaxCisnieniu ?: JSONObject.NULL)
+        o.put("maxTempKatalizatoraC", p.maxTempKatalizatoraC ?: JSONObject.NULL)
+        o.put("czasDo90CSekundy", p.czasDo90CSekundy ?: JSONObject.NULL)
+        o.put("czasPozaPasmemKorektSekundy", p.czasPozaPasmemKorektSekundy ?: JSONObject.NULL)
         return o.toString().toByteArray(Charsets.UTF_8)
     }
 
@@ -167,7 +172,12 @@ object PodsumowanieJson {
             kodyNaStarcie = o.stringList("kodyNaStarcie"),
             kodyNaKoncu = o.stringList("kodyNaKoncu"),
             liczbaProbek = o.getInt("liczbaProbek"),
-            sredniaHz = o.getDouble("sredniaHz")
+            sredniaHz = o.getDouble("sredniaHz"),
+            maxCisnienieSzynyBar = o.optionalDouble("maxCisnienieSzynyBar"),
+            obciazeniePrzyMaxCisnieniu = o.optionalDouble("obciazeniePrzyMaxCisnieniu"),
+            maxTempKatalizatoraC = o.optionalDouble("maxTempKatalizatoraC"),
+            czasDo90CSekundy = o.optionalDouble("czasDo90CSekundy"),
+            czasPozaPasmemKorektSekundy = o.optionalDouble("czasPozaPasmemKorektSekundy")
         )
     }
 
