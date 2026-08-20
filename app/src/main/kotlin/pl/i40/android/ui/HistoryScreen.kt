@@ -79,6 +79,8 @@ fun HistoryScreen(przejazdy: List<Przejazd>, onUsun: (String) -> Unit, modifier:
                 style = TextStyle(color = kolory.tekst, fontSize = 20.sp)
             )
         }
+        val karta = FormatKartyMiesiaca.zPrzejazdow(przejazdy, miesiac, cal)
+        KartaMiesiacaUi(karta)
         Row(Modifier.fillMaxWidth()) {
             for (s in dniTygodnia) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -130,6 +132,37 @@ fun HistoryScreen(przejazdy: List<Przejazd>, onUsun: (String) -> Unit, modifier:
         } else {
             for (p in listaDnia) {
                 WierszPrzejazdu(p, cal, onClick = { wybrany = p }, onUsun = { onUsun(p.id) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun KartaMiesiacaUi(karta: KartaMiesiaca) {
+    val kolory = LocalI40Kolory.current
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        for (w in karta.wiersze) {
+            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                BasicText(
+                    w.etykieta,
+                    modifier = Modifier.weight(1.4f),
+                    style = TextStyle(color = kolory.tekstDrugi, fontSize = 12.sp)
+                )
+                BasicText(
+                    w.wartosc,
+                    modifier = Modifier.weight(1f),
+                    style = TextStyle(color = kolory.tekst, fontSize = 12.sp, fontFamily = I40CzcionkaWartosci)
+                )
+                BasicText(
+                    w.poprzedni,
+                    modifier = Modifier.weight(1.2f),
+                    style = TextStyle(color = kolory.tekstWyciszony, fontSize = 12.sp)
+                )
+                BasicText(
+                    w.roznica,
+                    modifier = Modifier.weight(0.8f),
+                    style = TextStyle(color = kolory.tekst, fontSize = 12.sp, fontFamily = I40CzcionkaWartosci)
+                )
             }
         }
     }
