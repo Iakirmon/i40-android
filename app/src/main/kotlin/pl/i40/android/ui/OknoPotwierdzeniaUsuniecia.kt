@@ -24,12 +24,24 @@ fun OknoPotwierdzeniaUsuniecia(
     val kolory = LocalI40Kolory.current
     Column(modifier.fillMaxWidth().background(kolory.powierzchniaPodniesiona).padding(16.dp)) {
         BasicText(tekst.naglowek, style = TextStyle(color = kolory.tekst, fontSize = 18.sp))
+        if (tekst.dataGodzina.isNotEmpty()) {
+            BasicText(
+                tekst.dataGodzina,
+                modifier = Modifier.padding(top = 12.dp),
+                style = TextStyle(color = kolory.tekst, fontSize = 16.sp)
+            )
+        }
         BasicText(
-            tekst.dataGodzina,
-            modifier = Modifier.padding(top = 12.dp),
-            style = TextStyle(color = kolory.tekst, fontSize = 16.sp)
+            tekst.coGinie,
+            modifier = Modifier.padding(top = 8.dp),
+            style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
         )
-        BasicText(tekst.coGinie, style = TextStyle(color = kolory.tekst, fontSize = 14.sp))
+        for (w in tekst.pozycje) {
+            BasicText(w, style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp))
+        }
+        if (tekst.dalsze != null) {
+            BasicText(tekst.dalsze, style = TextStyle(color = kolory.tekstWyciszony, fontSize = 13.sp))
+        }
         BasicText(
             tekst.nieodtwarzalne,
             modifier = Modifier.padding(top = 12.dp),
@@ -60,7 +72,7 @@ fun OknoPotwierdzeniaUsuniecia(
             )
             Spacer(Modifier.weight(1f))
             BasicText(
-                "Usuń",
+                tekst.przyciskUsun,
                 modifier = Modifier.clickable(onClick = onUsun).padding(12.dp),
                 style = TextStyle(color = kolory.uwaga, fontSize = 16.sp)
             )

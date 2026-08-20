@@ -1,7 +1,9 @@
 package pl.i40.android.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +42,7 @@ import pl.i40.android.storage.StatusPrzejazdu
 fun HistoryScreen(
     przejazdy: List<Przejazd>,
     onUsun: (String) -> Unit,
+    onUsunWiele: (List<String>) -> Unit = {},
     onChroniony: (String, Boolean) -> Unit = { _, _ -> },
     punkty: List<PunktOdniesienia> = emptyList(),
     modifier: Modifier = Modifier
@@ -50,6 +53,8 @@ fun HistoryScreen(
     var dzien by remember { mutableStateOf<Long?>(null) }
     var wybrany by remember { mutableStateOf<Przejazd?>(null) }
     var doPotwierdzenia by remember { mutableStateOf<Przejazd?>(null) }
+    var doPotwierdzeniaWiele by remember { mutableStateOf<List<Przejazd>?>(null) }
+    var tryb by remember { mutableStateOf(TrybZaznaczania()) }
 
     val potwierdzany = doPotwierdzenia
     if (potwierdzany != null) {
@@ -65,6 +70,26 @@ fun HistoryScreen(
                 onUsun(potwierdzany.id)
                 doPotwierdzenia = null
                 wybrany = null
+            },
+            modifier = modifier
+        )
+        return
+    }
+
+    val wiele = doPotwierdzeniaWiele
+    if (wiele != null) {
+        OknoPotwierdzeniaUsuniecia(
+            tekst = FormatPotwierdzenia.wielokrotne(
+                wiele,
+                wiele.sumOf { liczbaPunktowPrzejazdu(it, punkty) },
+                FormatPotwierdzenia.rozmiarBajtow(wiele),
+                cal
+            ),
+            onAnuluj = { doPotwierdzeniaWiele = null },
+            onUsun = {
+                onUsunWiele(wiele.map { it.id })
+                doPotwierdzeniaWiele = null
+                tryb = tryb.zakoncz()
             },
             modifier = modifier
         )
@@ -89,29 +114,49 @@ fun HistoryScreen(
     val listaDnia = dzien?.let { SiatkaMiesiaca.sesjeDnia(it, przejazdy, cal) }.orEmpty()
 
     Column(modifier.fillMaxSize().background(kolory.tlo).padding(12.dp).verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            BasicText(
-                "<",
-                modifier = Modifier.clickable {
-                    miesiac = SiatkaMiesiaca.przesunMiesiac(miesiac, -1, cal)
-                    dzien = null
-                }.padding(12.dp),
-                style = TextStyle(color = kolory.tekst, fontSize = 20.sp)
-            )
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        if (tryb.aktywny) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 BasicText(
-                    SiatkaMiesiaca.tytulMiesiaca(miesiac, cal),
+                    "✕",
+                    modifier = Modifier.clickable { tryb = tryb.zakoncz() }.padding(12.dp),
                     style = TextStyle(color = kolory.tekst, fontSize = 18.sp)
                 )
+                BasicText(
+                    "Zaznaczono ${tryb.liczba}",
+                    modifier = Modifier.weight(1f),
+                    style = TextStyle(color = kolory.tekst, fontSize = 16.sp)
+                )
+                BasicText(
+                    "Zaznacz dzień",
+                    modifier = Modifier.clickable { tryb = tryb.zaznaczDzien(listaDnia) }.padding(8.dp),
+                    style = TextStyle(color = kolory.akcent, fontSize = 14.sp)
+                )
             }
-            BasicText(
-                ">",
-                modifier = Modifier.clickable {
-                    miesiac = SiatkaMiesiaca.przesunMiesiac(miesiac, 1, cal)
-                    dzien = null
-                }.padding(12.dp),
-                style = TextStyle(color = kolory.tekst, fontSize = 20.sp)
-            )
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                BasicText(
+                    "<",
+                    modifier = Modifier.clickable {
+                        miesiac = SiatkaMiesiaca.przesunMiesiac(miesiac, -1, cal)
+                        dzien = null
+                    }.padding(12.dp),
+                    style = TextStyle(color = kolory.tekst, fontSize = 20.sp)
+                )
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    BasicText(
+                        SiatkaMiesiaca.tytulMiesiaca(miesiac, cal),
+                        style = TextStyle(color = kolory.tekst, fontSize = 18.sp)
+                    )
+                }
+                BasicText(
+                    ">",
+                    modifier = Modifier.clickable {
+                        miesiac = SiatkaMiesiaca.przesunMiesiac(miesiac, 1, cal)
+                        dzien = null
+                    }.padding(12.dp),
+                    style = TextStyle(color = kolory.tekst, fontSize = 20.sp)
+                )
+            }
         }
         val karta = FormatKartyMiesiaca.zPrzejazdow(przejazdy, miesiac, cal)
         KartaMiesiacaUi(karta)
@@ -166,12 +211,36 @@ fun HistoryScreen(
         } else {
             for (p in listaDnia) {
                 WierszPrzejazdu(
-                    p,
-                    cal,
-                    onClick = { wybrany = p },
+                    p = p,
+                    cal = cal,
+                    tryb = tryb,
+                    onClick = {
+                        if (tryb.aktywny) {
+                            tryb = tryb.przelacz(p)
+                        } else {
+                            wybrany = p
+                        }
+                    },
+                    onPrzytrzymanie = { tryb = tryb.poPrzytrzymaniu(p) },
                     onGestUsuniecia = {
-                        if (p.status != StatusPrzejazdu.WToku) doPotwierdzenia = p
+                        if (!tryb.aktywny && p.status != StatusPrzejazdu.WToku) doPotwierdzenia = p
                     }
+                )
+            }
+            if (tryb.aktywny) {
+                val n = tryb.liczba
+                BasicText(
+                    "Usuń zaznaczone ($n)",
+                    modifier = Modifier
+                        .clickable(enabled = n > 0) {
+                            val wybrane = listaDnia.filter { it.id in tryb.zaznaczone }
+                            if (wybrane.isNotEmpty()) doPotwierdzeniaWiele = wybrane
+                        }
+                        .padding(16.dp),
+                    style = TextStyle(
+                        color = if (n > 0) kolory.uwaga else kolory.tekstWyciszony,
+                        fontSize = 16.sp
+                    )
                 )
             }
         }
@@ -209,8 +278,16 @@ private fun KartaMiesiacaUi(karta: KartaMiesiaca) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun WierszPrzejazdu(p: Przejazd, cal: Calendar, onClick: () -> Unit, onGestUsuniecia: () -> Unit) {
+private fun WierszPrzejazdu(
+    p: Przejazd,
+    cal: Calendar,
+    tryb: TrybZaznaczania,
+    onClick: () -> Unit,
+    onPrzytrzymanie: () -> Unit,
+    onGestUsuniecia: () -> Unit
+) {
     val kolory = LocalI40Kolory.current
     var offset by remember { mutableFloatStateOf(0f) }
     val c = cal.clone() as Calendar
@@ -221,7 +298,7 @@ private fun WierszPrzejazdu(p: Przejazd, cal: Calendar, onClick: () -> Unit, onG
     val km = p.podsumowanie.dystansKm?.let { FormatPomiaru.liczba(it, 1, "km") } ?: FormatPomiaru.NIEDOSTEPNE
     val przerwany = p.status == StatusPrzejazdu.Odzyskany
     val wToku = p.status == StatusPrzejazdu.WToku
-    val gest = if (wToku) {
+    val gest = if (wToku || tryb.aktywny) {
         Modifier
     } else {
         Modifier.pointerInput(p.id) {
@@ -234,17 +311,30 @@ private fun WierszPrzejazdu(p: Przejazd, cal: Calendar, onClick: () -> Unit, onG
             )
         }
     }
+    val znacznik = when {
+        !tryb.aktywny -> null
+        wToku -> "·"
+        p.id in tryb.zaznaczone -> "☑"
+        else -> "☐"
+    }
     Column(
         Modifier
             .fillMaxWidth()
             .offset { IntOffset(offset.roundToInt(), 0) }
             .then(gest)
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onPrzytrzymanie)
             .padding(8.dp)
             .background(kolory.powierzchnia)
             .padding(8.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (znacznik != null) {
+                BasicText(
+                    znacznik,
+                    modifier = Modifier.padding(end = 8.dp),
+                    style = TextStyle(color = kolory.tekst, fontSize = 16.sp)
+                )
+            }
             BasicText(godz, modifier = Modifier.weight(1f), style = TextStyle(color = kolory.tekst, fontSize = 16.sp))
             if (p.chroniony) {
                 BasicText("🔒", style = TextStyle(color = kolory.tekstDrugi, fontSize = 14.sp))
