@@ -71,6 +71,9 @@ object PasmaOdniesienia {
     /** Definicja mieszanki stechiometrycznej. */
     const val LAMBDA_STECHIOMETRIA = 1.0
 
+    /** Tabela 10.4 bazowego — silnik pracuje przy obrotach > 500. Ta sama stała co `GDI-1`. */
+    const val OBROTY_PRACA_MIN = 500.0
+
     /** Próg „rozgrzany” z modelu oleju, §8.5 bazowego. Nie [OilTempEstimator.silnikRozgrzany]. */
     const val CZAS_ROZGRZANY_S = 600.0
 
@@ -86,6 +89,15 @@ object PasmaOdniesienia {
     fun silnikRozgrzany(plynC: Double?, runtimeS: Double?): Boolean {
         if (plynC == null || runtimeS == null) return false
         return plynC >= plyn.start && runtimeS >= CZAS_ROZGRZANY_S
+    }
+
+    /**
+     * Jałowy rozgrzany — sekcja 4 warstwy odniesienia.
+     * Te same stałe co `GDI-1`: [OBROTY_PRACA_MIN], [plyn], [CZAS_ROZGRZANY_S].
+     */
+    fun jalowyRozgrzany(rpm: Double?, predkoscKmh: Double?, plynC: Double?, runtimeS: Double?): Boolean {
+        if (rpm == null || predkoscKmh == null) return false
+        return rpm > OBROTY_PRACA_MIN && predkoscKmh == 0.0 && silnikRozgrzany(plynC, runtimeS)
     }
 
     val wpisy: List<WpisPasma> = listOf(

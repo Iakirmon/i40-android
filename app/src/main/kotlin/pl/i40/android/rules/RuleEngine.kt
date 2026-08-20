@@ -41,7 +41,7 @@ data class RuleInput(
 
     /** Silnik pracuje przy obrotach > 500. Brak odczytu nie udaje pracy. */
     val engineRunning: Boolean
-        get() = rpm != null && rpm > 500.0
+        get() = rpm != null && rpm > PasmaOdniesienia.OBROTY_PRACA_MIN
 
     /** Silnik zgaszony przy obrotach < 50. Brak odczytu nie udaje postoju. */
     val engineOff: Boolean
@@ -225,9 +225,12 @@ object RuleEngine {
 
         val szyna = input.cisnienieSzynyBar
         if (
-            PasmaOdniesienia.silnikRozgrzany(input.coolantCelsius, input.runtimeSeconds) &&
-            input.predkoscKmh == 0.0 &&
-            input.engineRunning &&
+            PasmaOdniesienia.jalowyRozgrzany(
+                input.rpm,
+                input.predkoscKmh,
+                input.coolantCelsius,
+                input.runtimeSeconds
+            ) &&
             szyna != null &&
             szyna < PasmaOdniesienia.progGdi1Bar
         ) {
