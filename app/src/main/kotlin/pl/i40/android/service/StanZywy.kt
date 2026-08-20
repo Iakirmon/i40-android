@@ -66,6 +66,8 @@ class StanZywy {
         olej.estimateC?.let { ring.append(PID_OLEJ, at, it) }
     }
 
+    fun odczytyDoPunktu(): Map<Int, Double> = najnowsze.toMap()
+
     val olejC: Double? get() = olej.estimateC
 
     val wRuchu: Boolean get() = BlokadaPredkosci.wRuchu(najnowsze[BlokadaPredkosci.PID_PREDKOSC])

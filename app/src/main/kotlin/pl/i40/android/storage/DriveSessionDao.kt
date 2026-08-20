@@ -7,20 +7,55 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * SQLite — jedna tabela `przejazd`, schemat wersji 1 z §8.6.
- * Historia podniesie wersję w etapie H1; tu nie wyprzedzamy drabinki.
+ * SQLite — `przejazd` (v1) i `punkt_odniesienia` (v2, §8.1 warstwy odniesienia).
+ * Osobne `if` w [onUpgrade], nigdy łańcuch if/else — H1 dołoży kolejny stopień.
  */
 class DriveSessionDao(context: Context) :
     SQLiteOpenHelper(context, NAZWA_BAZY, null, WERSJA_SCHEMATU),
-    PrzejazdMagazyn {
+    PrzejazdMagazyn,
+    MagazynPunktowOdniesienia {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(SQL_CREATE)
         db.execSQL("CREATE INDEX idx_przejazd_poczatek ON przejazd (poczatek)")
         db.execSQL("CREATE INDEX idx_przejazd_status ON przejazd (status)")
+        utworzTabelePunktow(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) {
+            utworzTabelePunktow(db)
+        }
+    }
+
+    override fun zapisz(punkt: PunktOdniesienia) {
+        writableDatabase.execSQL(
+            """
+            INSERT INTO punkt_odniesienia (id, kiedy, vin, stan, zrodlo, probek, odczyty)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            arrayOf(
+                punkt.id,
+                punkt.kiedyMs,
+                punkt.vin,
+                punkt.stan,
+                punkt.zrodlo,
+                punkt.probek,
+                OdczytyPunktuJson.encode(punkt.odczyty)
+            )
+        )
+    }
+
+    override fun dlaVin(vin: String): List<PunktOdniesienia> {
+        val out = mutableListOf<PunktOdniesienia>()
+        readableDatabase.rawQuery(
+            "SELECT * FROM punkt_odniesienia WHERE vin = ? ORDER BY kiedy ASC",
+            arrayOf(vin)
+        ).use { c ->
+            while (c.moveToNext()) out.add(punktZKursora(c))
+        }
+        return out
+    }
 
     override fun wstaw(przejazd: Przejazd) {
         writableDatabase.execSQL(
@@ -115,9 +150,19 @@ class DriveSessionDao(context: Context) :
         )
     }
 
+    private fun punktZKursora(c: android.database.Cursor): PunktOdniesienia = PunktOdniesienia(
+        id = c.getString(c.getColumnIndexOrThrow("id")),
+        kiedyMs = c.getLong(c.getColumnIndexOrThrow("kiedy")),
+        vin = c.getString(c.getColumnIndexOrThrow("vin")),
+        stan = c.getString(c.getColumnIndexOrThrow("stan")),
+        zrodlo = c.getString(c.getColumnIndexOrThrow("zrodlo")),
+        probek = c.getInt(c.getColumnIndexOrThrow("probek")),
+        odczyty = OdczytyPunktuJson.decode(c.getBlob(c.getColumnIndexOrThrow("odczyty")))
+    )
+
     companion object {
         const val NAZWA_BAZY = "i40.db"
-        const val WERSJA_SCHEMATU = 1
+        const val WERSJA_SCHEMATU = 2
         const val SQL_CREATE = """
             CREATE TABLE przejazd (
                 id TEXT PRIMARY KEY,
@@ -130,6 +175,24 @@ class DriveSessionDao(context: Context) :
                 przebieg BLOB NOT NULL
             )
             """
+
+        /** Schemat z §8.1 warstwy odniesienia — bez zmian w nazwach kolumn. */
+        const val SQL_CREATE_PUNKT = """
+            CREATE TABLE punkt_odniesienia (
+                id       TEXT PRIMARY KEY,
+                kiedy    INTEGER NOT NULL,
+                vin      TEXT NOT NULL,
+                stan     TEXT NOT NULL,
+                zrodlo   TEXT NOT NULL,
+                probek   INTEGER NOT NULL,
+                odczyty  BLOB NOT NULL
+            )
+            """
+
+        private fun utworzTabelePunktow(db: SQLiteDatabase) {
+            db.execSQL(SQL_CREATE_PUNKT)
+            db.execSQL("CREATE INDEX idx_punkt_vin_kiedy ON punkt_odniesienia (vin, kiedy)")
+        }
     }
 }
 

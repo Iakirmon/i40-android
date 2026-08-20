@@ -19,8 +19,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pl.i40.android.R
 import pl.i40.android.acquisition.SampleStream
+import pl.i40.android.acquisition.SampleTick
 import pl.i40.android.alerts.AlertEngine
 import pl.i40.android.elm.ElmSession
+import pl.i40.android.rules.PasmaOdniesienia
 import pl.i40.android.storage.DriveSessionDao
 import pl.i40.android.storage.SessionRecorder
 import pl.i40.android.transport.MockI40Script
@@ -49,6 +51,12 @@ class DriveService : Service() {
 
     val alertEngine = AlertEngine()
     val maszyna = TripStateMachine()
+
+    private val zbieracz = ZbieraczPunktow(
+        terazMs = { System.currentTimeMillis() },
+        nowyId = { java.util.UUID.randomUUID().toString() }
+    )
+    var vinSesji: String? = null
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var petlaJob: Job? = null
@@ -82,6 +90,7 @@ class DriveService : Service() {
     override fun onDestroy() {
         petlaJob?.cancel()
         job.cancel()
+        zakonczOknoPunktu()
         zwolnijWakeLock()
         super.onDestroy()
     }
@@ -113,6 +122,7 @@ class DriveService : Service() {
     }
 
     fun wyjdzZNagrywania() {
+        zakonczOknoPunktu()
         zwolnijWakeLock()
         _stan.value = StanPrzejazdu.Czuwanie
         zywy.nagrywa = false
@@ -136,6 +146,7 @@ class DriveService : Service() {
                 zywy.zastosuj(tick)
                 zywy.measuredHz = stream.measuredHotHz
                 zywy.totalQueries = stream.totalQueries
+                obsluzPunktOdniesienia(tick)
                 val rpm = zywy.wartosc(0x0C)
                 if (rpm != null) {
                     val wynik = maszyna.on(ZdarzeniePrzejazdu.Obroty(rpm, System.currentTimeMillis()))
@@ -153,6 +164,23 @@ class DriveService : Service() {
 
     private fun publikuj() {
         _migawka.value = zywy.migawka(_stan.value)
+    }
+
+    private fun obsluzPunktOdniesienia(tick: SampleTick) {
+        if (tick.kind != SampleTick.Kind.Hot) return
+        val jalowy = PasmaOdniesienia.jalowyRozgrzany(
+            zywy.wartosc(0x0C),
+            zywy.wartosc(0x0D),
+            zywy.wartosc(0x05),
+            zywy.wartosc(0x1F)
+        )
+        val punkt = zbieracz.naCyklGoracy(jalowy, vinSesji, zywy.odczytyDoPunktu())
+        if (punkt != null) DriveSessionDao(applicationContext).zapisz(punkt)
+    }
+
+    private fun zakonczOknoPunktu() {
+        val punkt = zbieracz.zakonczSesje(vinSesji)
+        if (punkt != null) DriveSessionDao(applicationContext).zapisz(punkt)
     }
 
     private fun zwolnijWakeLock() {
