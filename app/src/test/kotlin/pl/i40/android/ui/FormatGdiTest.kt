@@ -61,4 +61,25 @@ class FormatGdiTest {
         assertTrue(wiersz.contains("obciąż") || wiersz.contains("obciaz"))
         assertEquals("Max w sesji: ${FormatPomiaru.NIEDOSTEPNE}", FormatGdi.maxWiersz(null, null))
     }
+
+    @Test
+    fun wierszJalowyZnikaPozaStanem() {
+        val punkty = listOf(
+            pl.i40.android.storage.PunktOdniesienia(
+                id = "p",
+                kiedyMs = 1L,
+                vin = "VIN",
+                stan = "jalowy_rozgrzany",
+                zrodlo = "przejazd",
+                probek = 20,
+                odczyty = mapOf(0x23 to 3810.0)
+            )
+        )
+        assertEquals(null, FormatGdi.wierszJalowy(false, 3840.0, punkty))
+        val w = FormatGdi.wierszJalowy(true, 3840.0, punkty)
+        assertTrue(w!!.contains("38,4"))
+        assertTrue(w.contains("poprzednio"))
+        assertTrue(w.contains("38,1"))
+        assertFalse(w.contains("norma"))
+    }
 }
