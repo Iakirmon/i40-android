@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">i40</string>
+    <string name="drive_channel">Nagrywanie</string>
+    <string name="drive_notification">Usługa przejazdu działa</string>
 </resources>
