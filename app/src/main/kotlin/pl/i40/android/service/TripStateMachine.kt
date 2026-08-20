@@ -125,15 +125,17 @@ class TripStateMachine {
     }
 }
 
-/** Siatka faz pętli — gorący zawsze, średni `n%4==0`, zimna `n%10==5`, kody `03` `n%200==150`. */
+/** Siatka faz: gorący zawsze, A `n%4==0`, B `n%10==5`, C `n%20==13`, tryb 03 `n%200==150`. */
 object PetlaFaz {
-    fun srednia(n: Int): Boolean = n % 4 == 0
-    fun zimna(n: Int): Boolean = n % 10 == 5
+    fun szybkiA(n: Int): Boolean = n % 4 == 0
+    fun sredniB(n: Int): Boolean = n % 10 == 5
+    fun wolnyC(n: Int): Boolean = n % 20 == 13
     fun kody03(n: Int): Boolean = n % 200 == 150
     fun liczbaZapytan(n: Int): Int {
         var q = 1
-        if (srednia(n)) q += 1
-        if (zimna(n)) q += 1
+        if (szybkiA(n)) q += 1
+        if (sredniB(n)) q += 1
+        if (wolnyC(n)) q += 1
         if (kody03(n)) q += 1
         return q
     }

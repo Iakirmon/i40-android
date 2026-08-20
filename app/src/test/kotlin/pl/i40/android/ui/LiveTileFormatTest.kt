@@ -18,10 +18,11 @@ class LiveTileFormatTest {
     }
 
     @Test
-    fun rotacjaZimnaNieZawiera2fAZawiera0107() {
-        val zimna = SampleStream.DEFAULT_COLD_PIDS
-        assertFalse(0x2F in zimna)
-        assertTrue(0x07 in zimna)
+    fun poziomCNieZawiera012FApoziomBZawiera0107() {
+        val wolny = SampleStream.DEFAULT_SLOW_PIDS
+        assertFalse(0x2F in wolny)
+        assertTrue(0x07 in SampleStream.DEFAULT_MEDIUM_PIDS)
+        assertFalse(0x07 in wolny)
     }
 
     @Test

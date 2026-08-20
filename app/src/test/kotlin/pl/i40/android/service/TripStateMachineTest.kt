@@ -79,43 +79,62 @@ class TripStateMachineTest {
     fun na200000CyklachZeroKolizjiTrzechZapytan() {
         var trzy = 0
         var max = 0
+        var queries = 0
+        var poziomC = 0
         for (n in 1..200_000) {
             val q = PetlaFaz.liczbaZapytan(n)
+            queries += q
             if (q > max) max = q
             if (q >= 3) trzy += 1
+            if (PetlaFaz.wolnyC(n)) poziomC += 1
         }
         assertEquals(0, trzy)
         assertEquals(2, max)
+        assertEquals(10_000, poziomC)
+        val naSekundePrzy4Hz = queries * 4.0 / 200_000.0
+        assertTrue(naSekundePrzy4Hz <= 25.0)
+        assertEquals(5.62, naSekundePrzy4Hz, 0.01)
         assertTrue(PetlaFaz.kody03(150))
-        assertTrue(!PetlaFaz.zimna(150))
-        assertTrue(PetlaFaz.zimna(5))
+        assertTrue(!PetlaFaz.sredniB(150))
+        assertTrue(!PetlaFaz.wolnyC(150))
+        assertTrue(PetlaFaz.sredniB(5))
+        assertTrue(PetlaFaz.wolnyC(13))
+        assertTrue(!PetlaFaz.szybkiA(13))
+        assertTrue(!PetlaFaz.sredniB(13))
         assertTrue(!PetlaFaz.kody03(5))
     }
 
     @Test
     fun czteryPoziomyNa20000CyklachZeroTrzechZapytan() {
         var trzy = 0
-        var srednich = 0
+        var szybkich = 0
         var queries = 0
         for (n in 1..20_000) {
             val q = PetlaFaz.liczbaZapytan(n)
             queries += q
             if (q >= 3) trzy += 1
-            if (PetlaFaz.srednia(n)) srednich += 1
+            if (PetlaFaz.szybkiA(n)) szybkich += 1
         }
         assertEquals(0, trzy)
-        assertEquals(5_000, srednich)
+        assertEquals(5_000, szybkich)
         val naSekundePrzy4Hz = queries * 4.0 / 20_000.0
         assertTrue(naSekundePrzy4Hz <= 25.0)
-        assertTrue(PetlaFaz.srednia(4))
-        assertTrue(!PetlaFaz.srednia(5))
-        assertTrue(!PetlaFaz.srednia(150))
+        assertTrue(PetlaFaz.szybkiA(4))
+        assertTrue(!PetlaFaz.szybkiA(5))
+        assertTrue(!PetlaFaz.szybkiA(150))
+    }
+
+    @Test
+    fun poziomCDokladnieCoDwudziestyCykl() {
+        for (n in 1..40) {
+            assertEquals(n % 20 == 13, PetlaFaz.wolnyC(n), "n=$n")
+        }
     }
 
     @Test
     fun petlaSredniaDokladnieCoCzwartyCykl() {
         for (n in 1..40) {
-            assertEquals(n % 4 == 0, PetlaFaz.srednia(n), "n=$n")
+            assertEquals(n % 4 == 0, PetlaFaz.szybkiA(n), "n=$n")
         }
     }
 }

@@ -88,7 +88,13 @@ object MockI40Script {
         plain("0149", "414925\r\r>")
         plain("014A", "414A25\r\r>")
         plain("014C", "414C14\r\r>")
-        // Pętla średnia — te same bajty co pojedyncze odpowiedzi z zapisu, jeden prefiks 41.
+        // Poziom A — bajty z pojedynczych odpowiedzi zapisu, jeden prefiks 41.
+        plain("01230B114C4943", "412301800B2211274C144925430039\r\r>")
+        // Poziom B — `0103` to status układu paliwowego (41030200), nie tryb 03.
+        plain("013C442E030742", "413C13444480002E000302000785423795\r\r>")
+        // Poziom C — cztery PID-y, dwa miejsca wolne (012F wypadł).
+        plain("011F460F33", "411F0096463D0F3F3363\r\r>")
+        // Stary skład pętli średniej D1 — zostaje w korpusie.
         plain("01233C0B114344", "412301803C13440B221127430039448000\r\r>")
         // Sonda — maska nie zgłasza; ECU odpowiada NO DATA.
         plain("015C", "NO DATA\r\r>")

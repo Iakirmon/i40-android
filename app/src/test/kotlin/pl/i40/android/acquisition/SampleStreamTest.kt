@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import pl.i40.android.elm.ElmSession
@@ -34,7 +35,9 @@ class TestSampleClock : SampleClock {
 
 class SampleStreamTest {
     private val hotResponse = "410D00055C043C0C0E760E87067F\r\r>"
-    private val mediumResponse = "412301803C13440B221127430039448000\r\r>"
+    private val fastResponse = "412301800B2211274C144925430039\r\r>"
+    private val mediumResponse = "413C13444480002E000302000785423795\r\r>"
+    private val slowResponse = "411F0096463D0F3F3363\r\r>"
 
     @Test
     fun skladaGoracaSzostkeZWymaganychIGniazd() {
@@ -54,13 +57,18 @@ class SampleStreamTest {
     }
 
     @Test
-    fun domyslnaRotacjaZimnaMaPiecPidBez2f5c5e10() {
-        val cold = SampleStream.DEFAULT_COLD_PIDS
-        assertEquals(listOf(0x46, 0x1F, 0x42, 0x0F, 0x07), cold)
-        assertTrue(0x2F !in cold)
-        assertTrue(0x5C !in cold)
-        assertTrue(0x5E !in cold)
-        assertTrue(0x10 !in cold)
+    fun poziomCMaCzteryPidBez012F() {
+        val slow = SampleStream.DEFAULT_SLOW_PIDS
+        assertEquals(listOf(0x1F, 0x46, 0x0F, 0x33), slow)
+        assertTrue(0x2F !in slow)
+        assertTrue(0x5C !in slow)
+        assertTrue(0x5E !in slow)
+        assertTrue(0x10 !in slow)
+        assertEquals(6, SampleStream.DEFAULT_FAST_PIDS.size)
+        assertEquals(6, SampleStream.DEFAULT_MEDIUM_PIDS.size)
+        assertTrue(0x03 in SampleStream.DEFAULT_MEDIUM_PIDS)
+        assertTrue(0x07 in SampleStream.DEFAULT_MEDIUM_PIDS)
+        assertFalse(0x03 in SampleStream.DEFAULT_FAST_PIDS)
     }
 
     @Test
@@ -109,14 +117,16 @@ class SampleStreamTest {
     }
 
     @Test
-    fun zimnaRotacjaNaFazieNMod10Rowna5() = runTest {
+    fun poziomBNaFazieNMod10Rowna5() = runTest {
         val clock = TestSampleClock()
         val extra = MockScriptEntry(command = "0142", response = "41423795\r\r>")
         val (transport, session) = makeSession(backgroundScope, extra)
         val stream = SampleStream(
             session,
             SampleStream.Configuration(
-                coldPids = listOf(0x42),
+                fastPids = emptyList(),
+                mediumPids = listOf(0x42),
+                slowPids = emptyList(),
                 rate = SampleRate.Detailed,
                 queryMode = PidQueryMode.Multi,
                 clock = clock,
@@ -125,24 +135,25 @@ class SampleStreamTest {
             )
         )
         val ticks = stream.events().toList()
-        val cold = ticks.filter { it.kind == SampleTick.Kind.Cold }
-        assertEquals(1, cold.size)
-        assertTrue(cold[0].readings.any { it.pid == 0x42 })
+        val medium = ticks.filter { it.kind == SampleTick.Kind.Medium }
+        assertEquals(1, medium.size)
+        assertTrue(medium[0].readings.any { it.pid == 0x42 })
         assertEquals(10, ticks.count { it.kind == SampleTick.Kind.Hot })
         session.stop()
         transport.close()
     }
 
     @Test
-    fun petlaSredniaCoCzwartyCyklJednymZapytaniemSzostki() = runTest {
+    fun poziomACoCzwartyCyklJednymZapytaniemSzostki() = runTest {
         val clock = TestSampleClock()
-        val mediumCmd = MultiPid.command(SampleStream.DEFAULT_MEDIUM_PIDS)
-        val extra = MockScriptEntry(command = mediumCmd, response = mediumResponse)
+        val fastCmd = MultiPid.command(SampleStream.DEFAULT_FAST_PIDS)
+        val extra = MockScriptEntry(command = fastCmd, response = fastResponse)
         val (transport, session) = makeSession(backgroundScope, extra)
         val stream = SampleStream(
             session,
             SampleStream.Configuration(
-                coldPids = emptyList(),
+                mediumPids = emptyList(),
+                slowPids = emptyList(),
                 rate = SampleRate.Detailed,
                 queryMode = PidQueryMode.Multi,
                 clock = clock,
@@ -150,15 +161,15 @@ class SampleStreamTest {
             )
         )
         val ticks = stream.events().toList()
-        val medium = ticks.filter { it.kind == SampleTick.Kind.Medium }
-        assertEquals(2, medium.size)
+        val fast = ticks.filter { it.kind == SampleTick.Kind.Fast }
+        assertEquals(2, fast.size)
         assertEquals(8, ticks.count { it.kind == SampleTick.Kind.Hot })
-        val pids = medium[0].readings.map { it.pid }
-        assertEquals(SampleStream.DEFAULT_MEDIUM_PIDS, pids)
-        val indeksyHotPrzedSrednim = ticks.mapIndexedNotNull { i, tick ->
-            if (tick.kind == SampleTick.Kind.Medium) i else null
+        val pids = fast[0].readings.map { it.pid }
+        assertEquals(SampleStream.DEFAULT_FAST_PIDS, pids)
+        val indeksyHotPrzedFast = ticks.mapIndexedNotNull { i, tick ->
+            if (tick.kind == SampleTick.Kind.Fast) i else null
         }
-        for (i in indeksyHotPrzedSrednim) {
+        for (i in indeksyHotPrzedFast) {
             assertEquals(SampleTick.Kind.Hot, ticks[i - 1].kind)
         }
         session.stop()
@@ -166,25 +177,29 @@ class SampleStreamTest {
     }
 
     @Test
-    fun skladITempoGoracejIdentycznePoDodaniuSredniej() {
+    fun skladITempoGoracejIdentycznePoPrzebudowiePoziomow() {
         val hot = SampleStream.composeHotPids(SampleStream.DEFAULT_CHART_SLOTS)
         assertEquals(listOf(0x0D, 0x05, 0x04, 0x0C, 0x0E, 0x06), hot)
         assertEquals(listOf(0x0D, 0x05, 0x04), SampleStream.REQUIRED_HOT_PIDS)
-        assertEquals(4, SampleStream.MEDIUM_EVERY_N)
-        assertEquals(0, SampleStream.MEDIUM_PHASE)
-        assertEquals(10, SampleStream.COLD_EVERY_N)
-        assertEquals(5, SampleStream.COLD_PHASE)
+        assertEquals(4, SampleStream.FAST_EVERY_N)
+        assertEquals(0, SampleStream.FAST_PHASE)
+        assertEquals(10, SampleStream.MEDIUM_EVERY_N)
+        assertEquals(5, SampleStream.MEDIUM_PHASE)
+        assertEquals(20, SampleStream.SLOW_EVERY_N)
+        assertEquals(13, SampleStream.SLOW_PHASE)
     }
 
     @Test
-    fun zimnaRotacjaNieWchodziPrzedCykl5() = runTest {
+    fun poziomBNieWchodziPrzedCykl5() = runTest {
         val clock = TestSampleClock()
         val extra = MockScriptEntry(command = "0142", response = "41423795\r\r>")
         val (transport, session) = makeSession(backgroundScope, extra)
         val stream = SampleStream(
             session,
             SampleStream.Configuration(
-                coldPids = listOf(0x42),
+                fastPids = emptyList(),
+                mediumPids = listOf(0x42),
+                slowPids = emptyList(),
                 rate = SampleRate.Detailed,
                 queryMode = PidQueryMode.Multi,
                 clock = clock,
@@ -192,7 +207,8 @@ class SampleStreamTest {
             )
         )
         val ticks = stream.events().toList()
-        assertEquals(0, ticks.count { it.kind == SampleTick.Kind.Cold })
+        assertEquals(0, ticks.count { it.kind == SampleTick.Kind.Medium })
+        assertEquals(0, ticks.count { it.kind == SampleTick.Kind.Slow })
         session.stop()
         transport.close()
     }
@@ -218,7 +234,9 @@ class SampleStreamTest {
                 rate = SampleRate.Balanced,
                 queryMode = PidQueryMode.Multi,
                 clock = clock,
-                coldPids = emptyList()
+                fastPids = emptyList(),
+                mediumPids = emptyList(),
+                slowPids = emptyList()
             )
         )
         val thrown = runCatching { stream.events().toList() }.exceptionOrNull()
@@ -234,11 +252,15 @@ class SampleStreamTest {
         extra: MockScriptEntry? = null
     ): Pair<MockTransport, ElmSession> {
         val hotCmd = MultiPid.command(SampleStream.composeHotPids(SampleStream.DEFAULT_CHART_SLOTS))
+        val fastCmd = MultiPid.command(SampleStream.DEFAULT_FAST_PIDS)
         val mediumCmd = MultiPid.command(SampleStream.DEFAULT_MEDIUM_PIDS)
+        val slowCmd = MultiPid.command(SampleStream.DEFAULT_SLOW_PIDS)
         val script = mutableListOf(
             MockScriptEntry(command = "ATE0", response = "OK\r\r>"),
             MockScriptEntry(command = hotCmd, response = hotResponse),
-            MockScriptEntry(command = mediumCmd, response = mediumResponse)
+            MockScriptEntry(command = fastCmd, response = fastResponse),
+            MockScriptEntry(command = mediumCmd, response = mediumResponse),
+            MockScriptEntry(command = slowCmd, response = slowResponse)
         )
         if (extra != null) script.add(extra)
         val transport = MockTransport(script)
