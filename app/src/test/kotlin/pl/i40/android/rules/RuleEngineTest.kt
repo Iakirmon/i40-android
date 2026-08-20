@@ -111,7 +111,59 @@ class RuleEngineTest {
     }
 
     @Test
+    fun gdi1NaJalowymRozgrzanymNiskimCisnieniu() {
+        val i = insight(gdiWejscie(cisnienie = 24.0), "GDI-1")
+        assertEquals(WagaWniosku.Uwaga, i.waga)
+        assertTrue(i.szczegol.contains("34"))
+        assertTrue(i.szczegol.contains("55"))
+        assertTrue(i.szczegol.contains("branżowej") || i.szczegol.contains("branzowej"))
+        assertFalse(ids(gdiWejscie(cisnienie = 24.0, plyn = 60.0)).contains("GDI-1"))
+        assertFalse(ids(gdiWejscie(cisnienie = 24.0, predkosc = 30.0)).contains("GDI-1"))
+        assertFalse(ids(gdiWejscie(cisnienie = 38.4)).contains("GDI-1"))
+        assertFalse(ids(gdiWejscie(cisnienie = PasmaOdniesienia.progGdi1Bar)).contains("GDI-1"))
+    }
+
+    @Test
+    fun kat1PrzyRozgrzanymPonizejZaplonu() {
+        val i = insight(katWejscie(temp = 212.0), "KAT-1")
+        assertEquals(WagaWniosku.Uwaga, i.waga)
+        assertTrue(i.szczegol.contains("300"))
+        assertFalse(ids(katWejscie(temp = 212.0, plyn = 40.0)).contains("KAT-1"))
+        assertFalse(ids(katWejscie(temp = 300.0)).contains("KAT-1"))
+    }
+
+    @Test
+    fun noweRegulyNieMajaWagiUsterka() {
+        val gdi = insight(gdiWejscie(cisnienie = 24.0), "GDI-1")
+        val kat = insight(katWejscie(temp = 212.0), "KAT-1")
+        assertEquals(WagaWniosku.Uwaga, gdi.waga)
+        assertEquals(WagaWniosku.Uwaga, kat.waga)
+    }
+
+    @Test
     fun brakujaceWartosciNieZgaduja() {
         assertTrue(RuleEngine.evaluate(RuleInput()).isEmpty())
+        assertFalse(ids(gdiWejscie(cisnienie = null)).contains("GDI-1"))
+        assertFalse(ids(katWejscie(temp = null)).contains("KAT-1"))
     }
+
+    private fun gdiWejscie(
+        cisnienie: Double?,
+        plyn: Double = 70.0,
+        runtime: Double = 600.0,
+        predkosc: Double = 0.0,
+        rpm: Double = 900.0
+    ) = RuleInput(
+        coolantCelsius = plyn,
+        runtimeSeconds = runtime,
+        predkoscKmh = predkosc,
+        rpm = rpm,
+        cisnienieSzynyBar = cisnienie
+    )
+
+    private fun katWejscie(temp: Double?, plyn: Double = 70.0, runtime: Double = 600.0) = RuleInput(
+        coolantCelsius = plyn,
+        runtimeSeconds = runtime,
+        temperaturaKatalizatoraC = temp
+    )
 }

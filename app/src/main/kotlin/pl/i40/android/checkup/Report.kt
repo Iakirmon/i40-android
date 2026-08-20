@@ -2,6 +2,7 @@ package pl.i40.android.checkup
 
 import pl.i40.android.obd.Dtc
 import pl.i40.android.obd.ReadinessStatus
+import pl.i40.android.rules.PasmaOdniesienia
 import pl.i40.android.rules.RuleEngine
 import pl.i40.android.rules.RuleInput
 import pl.i40.android.rules.WagaWniosku
@@ -95,7 +96,10 @@ data class Raport(
                 rpm = numeric(0x0C),
                 monitorsReady = gotowosc?.ready,
                 distanceSinceClearKm = numeric(0x31),
-                oilCelsius = numeric(0x5C)
+                oilCelsius = numeric(0x5C),
+                cisnienieSzynyBar = numeric(0x23)?.let { PasmaOdniesienia.kpaNaBar(it) },
+                predkoscKmh = numeric(0x0D),
+                temperaturaKatalizatoraC = numeric(0x3C)
             )
         }
 

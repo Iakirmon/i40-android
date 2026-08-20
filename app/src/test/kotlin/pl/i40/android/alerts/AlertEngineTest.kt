@@ -90,4 +90,27 @@ class AlertEngineTest {
         assertEquals(listOf(AlertKind.CoolantHot), engine.evaluate(snap, 10.0).map { it.kind })
         assertEquals(listOf(AlertKind.CoolantHot), engine.evaluate(snap, 20.0).map { it.kind })
     }
+
+    @Test
+    fun kat2Powyzej870() {
+        val events = AlertRules.evaluate(AlertSnapshot(temperaturaKatalizatoraC = 880.0))
+        assertEquals(listOf(AlertKind.CatalystHot), events.map { it.kind })
+        assertEquals(AlertSeverity.Warning, events[0].severity)
+        assertTrue(AlertRules.evaluate(AlertSnapshot(temperaturaKatalizatoraC = 870.0)).isEmpty())
+        assertTrue(AlertRules.evaluate(AlertSnapshot()).isEmpty())
+    }
+
+    @Test
+    fun kat2Karencja60s() {
+        val engine = AlertEngine()
+        val snap = AlertSnapshot(temperaturaKatalizatoraC = 880.0)
+        assertEquals(listOf(AlertKind.CatalystHot), engine.evaluate(snap, 0.0).map { it.kind })
+        assertTrue(engine.evaluate(snap, 59.9).isEmpty())
+        assertEquals(listOf(AlertKind.CatalystHot), engine.evaluate(snap, 60.0).map { it.kind })
+    }
+
+    @Test
+    fun kat2NieMaWagiUsterka() {
+        assertEquals(AlertSeverity.Warning, AlertKind.CatalystHot.severity)
+    }
 }

@@ -2,6 +2,7 @@ package pl.i40.android.ui
 
 import pl.i40.android.acquisition.OilTempEstimator
 import pl.i40.android.obd.PidCatalog
+import pl.i40.android.rules.PasmaOdniesienia
 
 /**
  * Formatowanie kafli żywego ekranu. Czwarty kafel to `0107` (poprawka P1), nie paliwo.
@@ -14,7 +15,8 @@ object FormatKafla {
     val KAFLI_DOMYSLNE: List<Int> = listOf(PID_OLEJ_MODEL, 0x05, 0x42, 0x07)
 
     /** Tabela 10.4: korekta długa poza ±10 % → uwaga. */
-    val PASMO_KOREKTY_DLUGIEJ: ClosedFloatingPointRange<Double> = -10.0..10.0
+    val PASMO_KOREKTY_DLUGIEJ: ClosedFloatingPointRange<Double>
+        get() = PasmaOdniesienia.korektaDluga
 
     fun krotkaEtykieta(pid: Int): String = when (pid) {
         PID_OLEJ_MODEL -> "OLEJ"

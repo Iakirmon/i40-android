@@ -27,6 +27,12 @@ data class RuleInput(
     val distanceSinceClearKm: Double? = null,
     /** PID `015C`, °C — na tym aucie nieobsługiwany; pole zostaje dla reguły */
     val oilCelsius: Double? = null,
+    /** PID `0123` w barach, nie w kPa */
+    val cisnienieSzynyBar: Double? = null,
+    /** PID `010D` */
+    val predkoscKmh: Double? = null,
+    /** PID `013C` */
+    val temperaturaKatalizatoraC: Double? = null
 ) {
     val runtimeMinutes: Double?
         get() = runtimeSeconds?.div(60.0)
@@ -83,7 +89,7 @@ object RuleEngine {
 
         val ltft = input.longTermFuelTrim
         if (ltft != null) {
-            if (ltft > 10.0) {
+            if (ltft > PasmaOdniesienia.korektaDluga.endInclusive) {
                 out.add(
                     Wniosek(
                         ruleId = "ltft_lean",
@@ -94,7 +100,7 @@ object RuleEngine {
                             "brudne wtryskiwacze.",
                     ),
                 )
-            } else if (ltft < -10.0) {
+            } else if (ltft < PasmaOdniesienia.korektaDluga.start) {
                 out.add(
                     Wniosek(
                         ruleId = "ltft_rich",
@@ -109,7 +115,7 @@ object RuleEngine {
         }
 
         val stft = input.shortTermFuelTrim
-        if (stft != null && ltft != null && kotlin.math.abs(stft + ltft) > 20.0) {
+        if (stft != null && ltft != null && kotlin.math.abs(stft + ltft) > PasmaOdniesienia.sumaKorekt.endInclusive) {
             out.add(
                 Wniosek(
                     ruleId = "trim_sum",
@@ -124,7 +130,7 @@ object RuleEngine {
 
         val coolant = input.coolantCelsius
         val minutes = input.runtimeMinutes
-        if (coolant != null && minutes != null && coolant < 70.0 && minutes > 10.0) {
+        if (coolant != null && minutes != null && coolant < PasmaOdniesienia.plyn.start && minutes > 10.0) {
             out.add(
                 Wniosek(
                     ruleId = "thermostat",
@@ -135,7 +141,7 @@ object RuleEngine {
             )
         }
 
-        if (coolant != null && coolant > 105.0) {
+        if (coolant != null && coolant > PasmaOdniesienia.plyn.endInclusive) {
             out.add(
                 Wniosek(
                     ruleId = "overheat",
@@ -147,7 +153,7 @@ object RuleEngine {
         }
 
         val voltage = input.voltage
-        if (voltage != null && input.engineRunning && voltage < 13.0) {
+        if (voltage != null && input.engineRunning && voltage < PasmaOdniesienia.napieciePraca.start) {
             out.add(
                 Wniosek(
                     ruleId = "alternator_low",
@@ -158,7 +164,7 @@ object RuleEngine {
             )
         }
 
-        if (voltage != null && voltage > 15.0) {
+        if (voltage != null && voltage > PasmaOdniesienia.napieciePraca.endInclusive) {
             out.add(
                 Wniosek(
                     ruleId = "overcharge",
@@ -204,13 +210,58 @@ object RuleEngine {
         }
 
         val oil = input.oilCelsius
-        if (oil != null && oil < 90.0) {
+        if (oil != null && oil < PasmaOdniesienia.OLEJ_MIN_C) {
             out.add(
                 Wniosek(
                     ruleId = "oil_cold",
                     waga = WagaWniosku.Informacja,
                     tytul = "Temperatura oleju poniżej 90 °C",
                     szczegol = "Silnik nie jest jeszcze w pełni rozgrzany.",
+                ),
+            )
+        }
+
+        val szyna = input.cisnienieSzynyBar
+        if (
+            PasmaOdniesienia.silnikRozgrzany(input.coolantCelsius, input.runtimeSeconds) &&
+            input.predkoscKmh == 0.0 &&
+            input.engineRunning &&
+            szyna != null &&
+            szyna < PasmaOdniesienia.progGdi1Bar
+        ) {
+            val barTekst = "%.1f".format(java.util.Locale.US, szyna).replace('.', ',')
+            val jalowy = PasmaOdniesienia.szynaJalowy
+            out.add(
+                Wniosek(
+                    ruleId = "GDI-1",
+                    waga = WagaWniosku.Uwaga,
+                    tytul = "Ciśnienie w szynie poniżej zakresu jałowego",
+                    szczegol =
+                    "Ciśnienie $barTekst bar przy zakresie odniesienia " +
+                        "${jalowy.start.toInt()} – ${jalowy.endInclusive.toInt()} bar dla jałowego. " +
+                        "Możliwe słabnięcie pompy wysokiego ciśnienia albo niedobór po stronie " +
+                        "niskiego ciśnienia. Zakres pochodzi z dokumentacji branżowej dla silników GDI, " +
+                        "nie z danych fabrycznych Hyundaia.",
+                ),
+            )
+        }
+
+        val kat = input.temperaturaKatalizatoraC
+        if (
+            PasmaOdniesienia.silnikRozgrzany(input.coolantCelsius, input.runtimeSeconds) &&
+            kat != null &&
+            kat < PasmaOdniesienia.KATALIZATOR_ZAPLON_C
+        ) {
+            val t = "%.0f".format(java.util.Locale.US, kat)
+            out.add(
+                Wniosek(
+                    ruleId = "KAT-1",
+                    waga = WagaWniosku.Uwaga,
+                    tytul = "Katalizator poniżej temperatury zapłonu",
+                    szczegol =
+                    "Katalizator $t °C przy rozgrzanym silniku. Poniżej " +
+                        "${PasmaOdniesienia.KATALIZATOR_ZAPLON_C.toInt()} °C konwersja praktycznie " +
+                        "nie zachodzi. Możliwa niesprawność katalizatora albo czujnika temperatury.",
                 ),
             )
         }

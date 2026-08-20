@@ -1,5 +1,7 @@
 package pl.i40.android.alerts
 
+import pl.i40.android.rules.PasmaOdniesienia
+
 enum class AlertSeverity { Urgent, Warning, Info }
 
 enum class AlertKind(val severity: AlertSeverity, val message: String) {
@@ -7,6 +9,7 @@ enum class AlertKind(val severity: AlertSeverity, val message: String) {
     LowVoltage(AlertSeverity.Warning, "Niskie napięcie przy pracującym silniku"),
     NewDtc(AlertSeverity.Warning, "Nowy kod błędu w trakcie sesji"),
     ColdOilHighRpm(AlertSeverity.Info, "Wysokie obroty przy zimnym oleju"),
+    CatalystHot(AlertSeverity.Warning, "Temperatura katalizatora powyżej normalnego zakresu"),
 }
 
 data class AlertEvent(val kind: AlertKind) {
@@ -20,7 +23,8 @@ data class AlertSnapshot(
     val voltageV: Double? = null,
     val rpm: Double? = null,
     val dtcsAtStart: Set<String> = emptySet(),
-    val dtcsNow: Set<String> = emptySet()
+    val dtcsNow: Set<String> = emptySet(),
+    val temperaturaKatalizatoraC: Double? = null
 ) {
     companion object {
         fun from(values: Map<Int, Double>, dtcsAtStart: Set<String> = emptySet(), dtcsNow: Set<String> = emptySet()) =
@@ -30,16 +34,17 @@ data class AlertSnapshot(
                 voltageV = values[0x42],
                 rpm = values[0x0C],
                 dtcsAtStart = dtcsAtStart,
-                dtcsNow = dtcsNow
+                dtcsNow = dtcsNow,
+                temperaturaKatalizatoraC = values[0x3C]
             )
     }
 }
 
 object AlertRules {
-    const val COOLANT_LIMIT_C = 105.0
-    const val VOLTAGE_FLOOR_V = 13.0
+    val COOLANT_LIMIT_C: Double get() = PasmaOdniesienia.plyn.endInclusive
+    val VOLTAGE_FLOOR_V: Double get() = PasmaOdniesienia.napieciePraca.start
     const val VOLTAGE_RPM_GATE = 500.0
-    const val OIL_COLD_LIMIT_C = 90.0
+    val OIL_COLD_LIMIT_C: Double get() = PasmaOdniesienia.OLEJ_MIN_C
     const val OIL_COLD_RPM_GATE = 4000.0
 
     fun evaluate(snapshot: AlertSnapshot): List<AlertEvent> {
@@ -57,6 +62,10 @@ object AlertRules {
         val oil = snapshot.oilC
         if (oil != null && rpm != null && oil < OIL_COLD_LIMIT_C && rpm > OIL_COLD_RPM_GATE) {
             out.add(AlertEvent(AlertKind.ColdOilHighRpm))
+        }
+        val kat = snapshot.temperaturaKatalizatoraC
+        if (kat != null && kat > PasmaOdniesienia.progKat2C) {
+            out.add(AlertEvent(AlertKind.CatalystHot))
         }
         return out
     }
