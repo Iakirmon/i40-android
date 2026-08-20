@@ -88,6 +88,8 @@ object MockI40Script {
         plain("0149", "414925\r\r>")
         plain("014A", "414A25\r\r>")
         plain("014C", "414C14\r\r>")
+        // Pętla średnia — te same bajty co pojedyncze odpowiedzi z zapisu, jeden prefiks 41.
+        plain("01233C0B114344", "412301803C13440B221127430039448000\r\r>")
         // Sonda — maska nie zgłasza; ECU odpowiada NO DATA.
         plain("015C", "NO DATA\r\r>")
 

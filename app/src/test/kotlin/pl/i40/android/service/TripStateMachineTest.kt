@@ -91,4 +91,31 @@ class TripStateMachineTest {
         assertTrue(PetlaFaz.zimna(5))
         assertTrue(!PetlaFaz.kody03(5))
     }
+
+    @Test
+    fun czteryPoziomyNa20000CyklachZeroTrzechZapytan() {
+        var trzy = 0
+        var srednich = 0
+        var queries = 0
+        for (n in 1..20_000) {
+            val q = PetlaFaz.liczbaZapytan(n)
+            queries += q
+            if (q >= 3) trzy += 1
+            if (PetlaFaz.srednia(n)) srednich += 1
+        }
+        assertEquals(0, trzy)
+        assertEquals(5_000, srednich)
+        val naSekundePrzy4Hz = queries * 4.0 / 20_000.0
+        assertTrue(naSekundePrzy4Hz <= 25.0)
+        assertTrue(PetlaFaz.srednia(4))
+        assertTrue(!PetlaFaz.srednia(5))
+        assertTrue(!PetlaFaz.srednia(150))
+    }
+
+    @Test
+    fun petlaSredniaDokladnieCoCzwartyCykl() {
+        for (n in 1..40) {
+            assertEquals(n % 4 == 0, PetlaFaz.srednia(n), "n=$n")
+        }
+    }
 }

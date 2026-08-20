@@ -48,7 +48,7 @@ class ContinuousSampleClock : SampleClock {
 }
 
 data class SampleTick(val kind: Kind, val time: Double, val readings: List<MultiPidReading>) {
-    enum class Kind { Hot, Cold }
+    enum class Kind { Hot, Medium, Cold }
 }
 
 sealed class SampleStreamError(message: String) : Exception(message) {
@@ -56,12 +56,13 @@ sealed class SampleStreamError(message: String) : Exception(message) {
 }
 
 /**
- * Pętla gorąca i rotacja zimna. Bez timera: następne zapytanie po odpowiedzi.
+ * Pętla gorąca, średnia i rotacja zimna. Bez timera: następne zapytanie po odpowiedzi.
  * Zegar jest wstrzykiwany — testy tempa nie czekają w czasie rzeczywistym.
  */
 class SampleStream(private val session: ElmSession, private val config: Configuration = Configuration()) {
     class Configuration(
         val chartSlots: List<Int> = DEFAULT_CHART_SLOTS,
+        val mediumPids: List<Int> = DEFAULT_MEDIUM_PIDS,
         val coldPids: List<Int> = DEFAULT_COLD_PIDS,
         val rate: SampleRate = SampleRate.Balanced,
         val queryMode: PidQueryMode? = null,
@@ -73,7 +74,10 @@ class SampleStream(private val session: ElmSession, private val config: Configur
     companion object {
         val DEFAULT_CHART_SLOTS: List<Int> = listOf(0x0C, 0x0E, 0x06)
         val REQUIRED_HOT_PIDS: List<Int> = listOf(0x0D, 0x05, 0x04)
+        val DEFAULT_MEDIUM_PIDS: List<Int> = listOf(0x23, 0x3C, 0x0B, 0x11, 0x43, 0x44)
         val DEFAULT_COLD_PIDS: List<Int> = listOf(0x46, 0x1F, 0x42, 0x0F, 0x07)
+        const val MEDIUM_EVERY_N = 4
+        const val MEDIUM_PHASE = 0
         const val COLD_EVERY_N = 10
         const val COLD_PHASE = 5
         val MIN_COMMAND_GAP: Duration = 20.milliseconds
@@ -134,6 +138,15 @@ class SampleStream(private val session: ElmSession, private val config: Configur
 
             if (config.simulatedCycleWork > Duration.ZERO) {
                 config.clock.advance(config.simulatedCycleWork)
+            }
+
+            if (hotCycles % MEDIUM_EVERY_N == MEDIUM_PHASE && config.mediumPids.isNotEmpty()) {
+                respectGapsAndCeiling()
+                val mediumReadings = PidBatchReader.read(session, config.mediumPids, mode)
+                noteQueries(queryCount(config.mediumPids, mode))
+                lastCommandEnd = config.clock.seconds()
+                registerReadResult(mediumReadings)
+                emit(SampleTick(SampleTick.Kind.Medium, lastCommandEnd, mediumReadings))
             }
 
             if (hotCycles % COLD_EVERY_N == COLD_PHASE && coldPool.isNotEmpty()) {
