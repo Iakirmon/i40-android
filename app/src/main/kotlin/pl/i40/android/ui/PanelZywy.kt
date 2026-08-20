@@ -5,4 +5,5 @@ enum class PanelZywy(val etykieta: String) {
     Podstawowy("PODSTAWOWY"),
     Mieszanka("MIESZANKA"),
     WtryskGdi("WTRYSK GDI"),
+    Termika("TERMIKA"),
 }

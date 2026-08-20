@@ -19,6 +19,7 @@ object OsY {
         0x42 -> 0.0..20.0
         0x0F -> -40.0..80.0
         0x23 -> 0.0..240.0
+        0x3C -> 0.0..1000.0
         else -> PidCatalog.definition(pid)?.range ?: 0.0..100.0
     }
 

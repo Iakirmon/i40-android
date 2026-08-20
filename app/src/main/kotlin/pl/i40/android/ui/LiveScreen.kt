@@ -72,6 +72,15 @@ fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = 
                 przepustnica = migawka.serie[0x11].orEmpty(),
                 modifier = Modifier.weight(1f)
             )
+            PanelZywy.Termika -> PanelTermika(
+                katalizator = migawka.serie[0x3C].orEmpty(),
+                plyn = migawka.serie[0x05].orEmpty(),
+                olej = migawka.serie[0x5C].orEmpty(),
+                olejPewnosc = migawka.olejPewnosc,
+                dolot = migawka.wartosci[0x0F],
+                otoczenie = migawka.wartosci[0x46],
+                modifier = Modifier.weight(1f)
+            )
         }
         PasekStanu(migawka = migawka, onStop = onStop)
     }

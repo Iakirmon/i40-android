@@ -36,6 +36,7 @@ class StanZywy {
             if (reading.pid == 0x1F) runtime = n.value
         }
         uaktualnijOlej(tick.time, runtime)
+        olej.estimateC?.let { ring.append(PID_OLEJ, tick.time, it) }
         if (nagrywa) elapsedSeconds = tick.time
     }
 
@@ -48,6 +49,7 @@ class StanZywy {
             if (pid == 0x1F) runtime = value
         }
         uaktualnijOlej(at, runtime)
+        olej.estimateC?.let { ring.append(PID_OLEJ, at, it) }
     }
 
     val olejC: Double? get() = olej.estimateC
@@ -75,7 +77,7 @@ class StanZywy {
         wartosci = najnowsze.toMap(),
         serie = (
             FormatKaflaWykresow.PIDY_WYKRESOW +
-                listOf(0x06, 0x07, 0x44, 0x23, 0x43, 0x11)
+                listOf(0x06, 0x07, 0x44, 0x23, 0x43, 0x11, 0x3C, 0x05, 0x5C)
             ).associateWith { ring.samples(it) },
         elapsedSeconds = elapsedSeconds,
         hz = measuredHz,
