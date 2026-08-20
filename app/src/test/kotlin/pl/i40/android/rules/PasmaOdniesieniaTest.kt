@@ -26,7 +26,7 @@ class PasmaOdniesieniaTest {
             ),
             ids
         )
-        assertEquals(6, PasmaOdniesienia.wpisy.count { it.rodzaj == RodzajPasma.Brak })
+        assertEquals(8, PasmaOdniesienia.wpisy.count { it.rodzaj == RodzajPasma.Brak })
     }
 
     @Test
@@ -45,7 +45,7 @@ class PasmaOdniesieniaTest {
         val wyswietlane = (
             FormatKafla.KAFLI_DOMYSLNE +
                 FormatKaflaWykresow.PIDY_WYKRESOW +
-                listOf(0x23, 0x43, 0x11, 0x3C, 0x06, 0x0B, 0x0F, 0x46, 0x15, 0x44, 0x0D, 0x2E)
+                listOf(0x23, 0x43, 0x11, 0x3C, 0x06, 0x0B, 0x0F, 0x46, 0x15, 0x44, 0x0D, 0x2E, 0x33, 0x4C, 0x49)
             ).toSet()
         for (pid in wyswietlane) {
             assertTrue(
@@ -57,8 +57,24 @@ class PasmaOdniesieniaTest {
     }
 
     @Test
+    fun piecPozycjiPaneluPowietrzeMaWpisPasma() {
+        val ids = listOf("podcisnienie", "rozjazd", "przepustnica", "pedal", "atmosfera")
+        for (id in ids) {
+            val wpis = PasmaOdniesienia.wpisy.first { it.id == id }
+            assertTrue(wpis.uzasadnienie.isNotBlank(), id)
+        }
+        assertEquals(RodzajPasma.Brak, PasmaOdniesienia.wpisy.first { it.id == "podcisnienie" }.rodzaj)
+        assertEquals(RodzajPasma.Brak, PasmaOdniesienia.wpisy.first { it.id == "rozjazd" }.rodzaj)
+        assertEquals(RodzajPasma.Fizyczny, PasmaOdniesienia.wpisy.first { it.id == "przepustnica" }.rodzaj)
+        assertEquals(RodzajPasma.Fizyczny, PasmaOdniesienia.wpisy.first { it.id == "pedal" }.rodzaj)
+        assertEquals(RodzajPasma.Fizyczny, PasmaOdniesienia.wpisy.first { it.id == "atmosfera" }.rodzaj)
+        assertEquals(50.0, PasmaOdniesienia.wpisy.first { it.id == "atmosfera" }.min)
+        assertEquals(110.0, PasmaOdniesienia.wpisy.first { it.id == "atmosfera" }.max)
+    }
+
+    @Test
     fun czteryBrakiNormyMajaUzasadnienie() {
-        for (id in listOf("zaplon", "kolektor", "dolot", "otoczenie", "przedmuch")) {
+        for (id in listOf("zaplon", "kolektor", "dolot", "otoczenie", "przedmuch", "podcisnienie", "rozjazd")) {
             val wpis = PasmaOdniesienia.wpisy.first { it.id == id }
             assertEquals(RodzajPasma.Brak, wpis.rodzaj)
             assertTrue(wpis.uzasadnienie.isNotBlank())

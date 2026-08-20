@@ -18,6 +18,9 @@ class ChartYAxisTest {
         assertEquals(0.0..150.0, OsY.zakres(0x10))
         assertEquals(0.0..130.0, OsY.zakres(0x05))
         assertEquals(0.0..150.0, OsY.zakres(0x5C))
+        assertEquals(0.0..110.0, OsY.zakres(FormatPowietrza.PID_PODCISNIENIE))
+        assertEquals(0.0..100.0, OsY.zakres(0x4C))
+        assertEquals(0.0..100.0, OsY.zakres(0x49))
     }
 
     @Test

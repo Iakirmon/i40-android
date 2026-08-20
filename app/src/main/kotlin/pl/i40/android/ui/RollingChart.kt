@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
@@ -31,11 +32,13 @@ fun RollingChart(
     dziedzinaCzasu: ClosedFloatingPointRange<Double>? = null,
     tytul: String? = null,
     linieOdniesienia: List<Double> = emptyList(),
-    cienie: List<PasmoCienia> = emptyList()
+    cienie: List<PasmoCienia> = emptyList(),
+    samplesDruga: List<RingSample> = emptyList(),
+    wartoscNadpisana: String? = null
 ) {
     val kolory = LocalI40Kolory.current
     val zakres = OsY.zakres(pid)
-    val domena = dziedzinaCzasu ?: OsY.domenaCzasu(samples)
+    val domena = dziedzinaCzasu ?: OsY.domenaCzasu(samples + samplesDruga)
     val biezaca = samples.lastOrNull()?.value
     val przyciecie = biezaca?.let { OsY.przytnij(it, pid) }
 
@@ -47,7 +50,7 @@ fun RollingChart(
             )
             Box(Modifier.weight(1f))
             BasicText(
-                text = FormatKafla.wartosc(pid, biezaca),
+                text = wartoscNadpisana ?: FormatKafla.wartosc(pid, biezaca),
                 style = TextStyle(
                     color = if (przyciecie?.przyciete == true) kolory.uwaga else kolory.tekst,
                     fontSize = 16.sp,
@@ -97,6 +100,32 @@ fun RollingChart(
                     }
                 }
                 drawPath(path, color = kolory.akcent, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+            }
+            if (samplesDruga.size >= 2) {
+                val path = Path()
+                var started = false
+                for (sample in samplesDruga) {
+                    val t = ((sample.time - domena.start) / span).toFloat()
+                    val clipped = OsY.przytnij(sample.value, pid)
+                    val yn = ((clipped.wartosc - zakres.start) / ySpan).toFloat()
+                    val x = t.coerceIn(0f, 1f) * w
+                    val y = (1f - yn.coerceIn(0f, 1f)) * h
+                    if (!started) {
+                        path.moveTo(x, y)
+                        started = true
+                    } else {
+                        path.lineTo(x, y)
+                    }
+                }
+                drawPath(
+                    path,
+                    color = kolory.tekst,
+                    style = Stroke(
+                        width = 2.dp.toPx(),
+                        cap = StrokeCap.Round,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+                    )
+                )
             }
             if (przyciecie?.przyciete == true) {
                 drawCircle(kolory.uwaga, radius = 4.dp.toPx(), center = Offset(w - 4.dp.toPx(), 4.dp.toPx()))

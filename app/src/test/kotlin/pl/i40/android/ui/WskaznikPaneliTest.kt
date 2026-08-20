@@ -13,5 +13,8 @@ class WskaznikPaneliTest {
         assertTrue(m.contains("MIESZANKA"))
         val t = WskaznikPaneli.tekst(PanelZywy.Termika)
         assertTrue(t.startsWith("○ ○ ○ ● ○"))
+        val p = WskaznikPaneli.tekst(PanelZywy.Powietrze)
+        assertTrue(p.startsWith("○ ○ ○ ○ ●"))
+        assertTrue(p.contains("POWIETRZE"))
     }
 }

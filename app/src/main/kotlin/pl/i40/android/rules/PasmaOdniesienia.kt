@@ -190,7 +190,28 @@ object PasmaOdniesienia {
             null,
             "%",
             "Zadane przedmuchiwanie; tłumaczy skok korekty, osobnej normy brak."
-        )
+        ),
+        WpisPasma(
+            "podcisnienie",
+            null,
+            RodzajPasma.Brak,
+            null,
+            null,
+            "kPa",
+            "Zależy od obciążenia i wysokości n.p.m.; brak źródła na wartość jałową."
+        ),
+        WpisPasma(
+            "rozjazd",
+            null,
+            RodzajPasma.Brak,
+            null,
+            null,
+            "pkt",
+            "Brak źródła na dopuszczalną różnicę."
+        ),
+        WpisPasma("przepustnica_zadana", 0x4C, RodzajPasma.Fizyczny, 0.0, 100.0, "%", "katalog"),
+        WpisPasma("pedal", 0x49, RodzajPasma.Fizyczny, 0.0, 100.0, "%", "katalog"),
+        WpisPasma("atmosfera", 0x33, RodzajPasma.Fizyczny, 50.0, 110.0, "kPa", "katalog")
     )
 
     fun wpisyDlaPid(pid: Int): List<WpisPasma> = wpisy.filter { it.pid == pid }

@@ -41,11 +41,12 @@ object FormatKafla {
     fun jednostka(pid: Int): String = when (pid) {
         0x05, 0x5C, 0x0F, 0x46 -> "°C"
         0x42 -> "V"
-        0x04, 0x06, 0x07, 0x11, 0x2E -> "%"
+        0x04, 0x06, 0x07, 0x11, 0x2E, 0x4C, 0x49 -> "%"
         0x0C -> ""
         0x0E -> "°"
         0x0D -> "km/h"
         0x23 -> "bar"
+        0x0B, 0x33, FormatPowietrza.PID_PODCISNIENIE -> "kPa"
         else -> PidCatalog.definition(pid)?.unit.orEmpty()
     }
 

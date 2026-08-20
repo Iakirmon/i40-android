@@ -6,6 +6,7 @@ enum class PanelZywy(val etykieta: String) {
     Mieszanka("MIESZANKA"),
     WtryskGdi("WTRYSK GDI"),
     Termika("TERMIKA"),
+    Powietrze("POWIETRZE"),
 }
 
 /** Pięć kropek: piąta to miejsce na panel Powietrze (K4). */

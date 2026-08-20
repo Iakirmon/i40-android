@@ -113,6 +113,19 @@ fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = 
                         otoczenie = migawka.wartosci[0x46],
                         modifier = Modifier.weight(1f)
                     )
+                    PanelZywy.Powietrze -> PanelPowietrze(
+                        atmosfera = migawka.wartosci[0x33],
+                        kolektor = migawka.wartosci[0x0B],
+                        zadana = migawka.wartosci[0x4C],
+                        rzeczywista = migawka.wartosci[0x11],
+                        pedal = migawka.wartosci[0x49],
+                        atmosferaSamples = migawka.serie[0x33].orEmpty(),
+                        kolektorSamples = migawka.serie[0x0B].orEmpty(),
+                        zadanaSamples = migawka.serie[0x4C].orEmpty(),
+                        rzeczywistaSamples = migawka.serie[0x11].orEmpty(),
+                        pedalSamples = migawka.serie[0x49].orEmpty(),
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
