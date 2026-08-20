@@ -346,6 +346,15 @@ się na ekranie:
 **Etap W1 zaczyna się od odczytania `smallestScreenWidthDp` na prawdziwym radiu i zapisania
 wyniku w tym dokumencie.** Nie zgadujemy — jeden odczyt rozstrzyga.
 
+### Odczyt z radia (W1) — do uzupełnienia na sprzęcie
+
+| Pole | Wartość |
+|---|---|
+| `densityDpi` | *nieodczytane — radio niedostępne w Cursorze* |
+| `smallestScreenWidthDp` | *nieodczytane* |
+| `screenWidthDp` × `screenHeightDp` | *nieodczytane* |
+| Wersja Androida | *nieodczytane (karta: 14, instrukcja: 13)* |
+
 Do czasu odczytu obowiązuje założenie **`sw600dp`** (najciaśniejszy realny wariant) i żaden
 układ nie ma prawa zakładać więcej.
 

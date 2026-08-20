@@ -216,7 +216,7 @@ private fun Kafel(pid: Int, migawka: MigawkaZywego, onKlik: () -> Unit, modifier
         BasicText(
             text = wartosc,
             style = TextStyle(
-                color = kolory.tekst,
+                color = if (olej) kolory.model else kolory.tekst,
                 fontSize = 22.sp,
                 fontFamily = I40CzcionkaWartosci,
                 fontWeight = FontWeight.Medium
