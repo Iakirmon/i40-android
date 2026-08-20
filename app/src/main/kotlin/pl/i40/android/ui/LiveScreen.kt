@@ -29,7 +29,7 @@ import pl.i40.android.service.StanPrzejazdu
 @Composable
 fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = Modifier) {
     val kolory = LocalI40Kolory.current
-    var mieszanka by remember { mutableStateOf(false) }
+    var panel by remember { mutableStateOf(PanelZywy.Podstawowy) }
     Column(modifier.fillMaxSize().background(kolory.tlo)) {
         Row(Modifier.fillMaxWidth()) {
             for (pid in FormatKafla.KAFLI_DOMYSLNE) {
@@ -37,14 +37,26 @@ fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = 
             }
         }
         BasicText(
-            text = if (mieszanka) "● MIESZANKA" else "○ MIESZANKA",
+            text = wskaznikPaneli(panel),
             modifier = Modifier
-                .clickable { mieszanka = !mieszanka }
+                .clickable {
+                    val all = PanelZywy.entries
+                    panel = all[(all.indexOf(panel) + 1) % all.size]
+                }
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             style = TextStyle(color = kolory.akcent, fontSize = 12.sp)
         )
-        if (mieszanka) {
-            PanelMieszanka(
+        when (panel) {
+            PanelZywy.Podstawowy -> {
+                for (pid in FormatKaflaWykresow.PIDY_WYKRESOW) {
+                    RollingChart(
+                        pid = pid,
+                        samples = migawka.serie[pid].orEmpty(),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            PanelZywy.Mieszanka -> PanelMieszanka(
                 stft = migawka.wartosci[0x06],
                 ltft = migawka.wartosci[0x07],
                 lambda = migawka.wartosci[0x44],
@@ -54,17 +66,20 @@ fun LiveScreen(migawka: MigawkaZywego, onStop: () -> Unit, modifier: Modifier = 
                 sesjaS = migawka.elapsedSeconds,
                 modifier = Modifier.weight(1f)
             )
-        } else {
-            for (pid in FormatKaflaWykresow.PIDY_WYKRESOW) {
-                RollingChart(
-                    pid = pid,
-                    samples = migawka.serie[pid].orEmpty(),
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            PanelZywy.WtryskGdi -> PanelWtryskGdi(
+                szynaKpa = migawka.serie[0x23].orEmpty(),
+                obciazenie = migawka.serie[0x43].orEmpty(),
+                przepustnica = migawka.serie[0x11].orEmpty(),
+                modifier = Modifier.weight(1f)
+            )
         }
         PasekStanu(migawka = migawka, onStop = onStop)
     }
+}
+
+private fun wskaznikPaneli(aktywny: PanelZywy): String {
+    val kropki = PanelZywy.entries.joinToString(" ") { if (it == aktywny) "●" else "○" }
+    return "$kropki  ${aktywny.etykieta}"
 }
 
 @Composable

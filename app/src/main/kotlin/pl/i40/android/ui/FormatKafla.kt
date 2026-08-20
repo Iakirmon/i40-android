@@ -32,7 +32,7 @@ object FormatKafla {
     }
 
     fun cyfryPoPrzecinku(pid: Int): Int = when (pid) {
-        0x42, 0x06, 0x07, 0x0E -> 1
+        0x42, 0x06, 0x07, 0x0E, 0x23 -> 1
         0x44 -> 3
         else -> 0
     }
@@ -44,6 +44,7 @@ object FormatKafla {
         0x0C -> ""
         0x0E -> "°"
         0x0D -> "km/h"
+        0x23 -> "bar"
         else -> PidCatalog.definition(pid)?.unit.orEmpty()
     }
 

@@ -73,7 +73,10 @@ class StanZywy {
         olejC = olej.estimateC,
         olejPewnosc = olej.pewnosc,
         wartosci = najnowsze.toMap(),
-        serie = (FormatKaflaWykresow.PIDY_WYKRESOW + listOf(0x06, 0x07, 0x44)).associateWith { ring.samples(it) },
+        serie = (
+            FormatKaflaWykresow.PIDY_WYKRESOW +
+                listOf(0x06, 0x07, 0x44, 0x23, 0x43, 0x11)
+            ).associateWith { ring.samples(it) },
         elapsedSeconds = elapsedSeconds,
         hz = measuredHz,
         queries = totalQueries
