@@ -55,6 +55,7 @@ fun HistoryScreen(
     var doPotwierdzenia by remember { mutableStateOf<Przejazd?>(null) }
     var doPotwierdzeniaWiele by remember { mutableStateOf<List<Przejazd>?>(null) }
     var tryb by remember { mutableStateOf(TrybZaznaczania()) }
+    var porzadki by remember { mutableStateOf(false) }
 
     val potwierdzany = doPotwierdzenia
     if (potwierdzany != null) {
@@ -90,6 +91,19 @@ fun HistoryScreen(
                 onUsunWiele(wiele.map { it.id })
                 doPotwierdzeniaWiele = null
                 tryb = tryb.zakoncz()
+            },
+            modifier = modifier
+        )
+        return
+    }
+
+    if (porzadki) {
+        PorzadkiScreen(
+            przejazdy = przejazdy,
+            onWstecz = { porzadki = false },
+            onUsun = { ids ->
+                onUsunWiele(ids)
+                porzadki = false
             },
             modifier = modifier
         )
@@ -160,6 +174,11 @@ fun HistoryScreen(
         }
         val karta = FormatKartyMiesiaca.zPrzejazdow(przejazdy, miesiac, cal)
         KartaMiesiacaUi(karta)
+        BasicText(
+            "Porządki",
+            modifier = Modifier.clickable { porzadki = true }.padding(8.dp),
+            style = TextStyle(color = kolory.akcent, fontSize = 14.sp)
+        )
         Row(Modifier.fillMaxWidth()) {
             for (s in dniTygodnia) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
