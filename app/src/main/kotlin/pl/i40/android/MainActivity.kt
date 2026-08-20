@@ -18,6 +18,7 @@ import pl.i40.android.service.DriveService
 import pl.i40.android.service.MigawkaZywego
 import pl.i40.android.storage.Przejazd
 import pl.i40.android.ui.I40App
+import pl.i40.android.ui.MagazynSlownika
 
 class MainActivity : ComponentActivity() {
     private var usluga by mutableStateOf<DriveService?>(null)
@@ -34,6 +35,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MagazynSlownika.wczytaj(assets.open("slownik.md").bufferedReader().use { it.readText() })
         startForegroundService(Intent(this, DriveService::class.java))
         bindService(Intent(this, DriveService::class.java), polaczenie, BIND_AUTO_CREATE)
         setContent {
