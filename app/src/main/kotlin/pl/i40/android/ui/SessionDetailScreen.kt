@@ -47,9 +47,22 @@ fun SessionDetailScreen(przejazd: Przejazd, onWstecz: () -> Unit, modifier: Modi
             }",
             style = TextStyle(color = kolory.tekst, fontSize = 16.sp)
         )
+        for (wiersz in FormatRaportu.naglowek(s)) {
+            WierszRaportuUi(wiersz)
+        }
+        BasicText(
+            "DIAGNOSTYKA",
+            modifier = Modifier.padding(top = 8.dp),
+            style = TextStyle(color = kolory.akcent, fontSize = 16.sp)
+        )
+        val diag = FormatRaportu.diagnostyka(s)
+        WierszRaportuUi(diag.cisnienie)
+        WierszRaportuUi(diag.katalizator)
+        WierszRaportuUi(diag.plyn90)
+        WierszRaportuUi(diag.korektyPoza)
         val suwakTekst = FormatPomiaru.liczba(model.czasSuwaka.toDouble(), 1, "s")
         BasicText("Suwak $suwakTekst", style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp))
-        for (seria in model.serie) {
+        for (seria in model.stosWykresow) {
             val scrub = model.wartoscPrzySuwaku(seria)?.toDouble()
             val samples = model.punktyZdecymowane(seria).map { RingSample(it.time.toDouble(), it.value.toDouble()) }
             Column(
@@ -67,15 +80,30 @@ fun SessionDetailScreen(przejazd: Przejazd, onWstecz: () -> Unit, modifier: Modi
                     pid = seria.pid,
                     samples = samples,
                     modifier = Modifier.height(110.dp),
-                    dziedzinaCzasu = model.okno.start.toDouble()..model.okno.endInclusive.toDouble()
+                    dziedzinaCzasu = model.okno.start.toDouble()..model.okno.endInclusive.toDouble(),
+                    linieOdniesienia = FormatRaportu.linieWykresu(seria.pid)
                 )
                 BasicText(
-                    FormatKafla.wartosc(seria.pid, scrub),
+                    FormatRaportu.wartoscWykresu(seria.pid, scrub),
                     style = TextStyle(color = kolory.akcent, fontFamily = I40CzcionkaWartosci, fontSize = 14.sp)
                 )
             }
         }
     }
+}
+
+@Composable
+private fun WierszRaportuUi(wiersz: WierszRaportu) {
+    val kolory = LocalI40Kolory.current
+    val znacznik = if (wiersz.znacznik.isEmpty()) "" else " ${wiersz.znacznik}"
+    BasicText(
+        text = "${wiersz.etykieta}  ${wiersz.wartosc}$znacznik",
+        style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
+    )
+    BasicText(
+        text = "norma  ${wiersz.norma}",
+        style = TextStyle(color = kolory.tekstDrugi, fontSize = 13.sp)
+    )
 }
 
 private fun Przejazd.startMs(): Long = poczatekMs

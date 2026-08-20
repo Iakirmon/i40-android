@@ -33,6 +33,23 @@ object SeriesLookup {
 
     fun value(at: Float, series: TrackBlob.Series): Float? = value(at, series.times, series.values)
 
+    /** Wartość próbki **najbliższej czasowo** — pasma pętli średniej nie dzielą siatki z gorącą. */
+    fun nearest(at: Float, times: List<Float>, values: List<Float>): Float? {
+        if (times.size != values.size || times.isEmpty()) return null
+        var best = 0
+        var bestD = kotlin.math.abs(times[0] - at)
+        for (i in 1 until times.size) {
+            val d = kotlin.math.abs(times[i] - at)
+            if (d < bestD) {
+                bestD = d
+                best = i
+            }
+        }
+        return values[best]
+    }
+
+    fun nearest(at: Float, series: TrackBlob.Series): Float? = nearest(at, series.times, series.values)
+
     fun clamp(t: Float, to: ClosedFloatingPointRange<Float>): Float = minOf(maxOf(t, to.start), to.endInclusive)
 
     fun zoomedRange(

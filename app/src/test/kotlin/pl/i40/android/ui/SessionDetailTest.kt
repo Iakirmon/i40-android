@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import pl.i40.android.charts.SeriesLookup
+import pl.i40.android.rules.PasmaOdniesienia
 import pl.i40.android.storage.PodsumowaniePrzejazdu
 import pl.i40.android.storage.TrackBlob
 
@@ -60,5 +61,23 @@ class SessionDetailTest {
         assertTrue(points.isNotEmpty())
         assertTrue(points.all { it.time >= 50f && it.time <= 100f })
         assertTrue(points.size <= 40)
+    }
+
+    @Test
+    fun suwakNaRzadkimPasmieBierzeNajblizszaCzasowo() {
+        val track = TrackBlob()
+        for (i in 0..4) {
+            track.append(0x0C, i * 0.25f, 800f + i)
+        }
+        track.append(0x23, 0f, 3800f)
+        track.append(0x23, 1f, 14800f)
+        val model = ModelSzczegolowSesji(PodsumowaniePrzejazdu(czasTrwaniaS = 1.0, liczbaProbek = 7), track)
+        model.czasSuwaka = 0.7f
+        val szyna = model.stosWykresow.first { it.pid == 0x23 }
+        val bar = model.wartoscPrzySuwaku(szyna)
+        assertEquals(PasmaOdniesienia.kpaNaBar(14800.0).toFloat(), bar!!, 0.01f)
+        val lastNotLater = SeriesLookup.value(at = 0.7f, times = listOf(0f, 1f), values = listOf(3800f, 14800f))
+        assertEquals(3800f, lastNotLater)
+        assertTrue(bar != PasmaOdniesienia.kpaNaBar(3800.0).toFloat())
     }
 }
