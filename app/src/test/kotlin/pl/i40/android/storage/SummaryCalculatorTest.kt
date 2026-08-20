@@ -166,6 +166,25 @@ class SummaryCalculatorTest {
         assertEquals(10.0, s.czasWPetliZamknietejSekundy)
     }
 
+    @Test
+    fun medianaKorektyOdpornaNaOdstepajacyPunkt() {
+        val track = TrackBlob()
+        val wartosci = listOf(3f, 4f, 4f, 5f, 100f)
+        wartosci.forEachIndexed { i, v -> track.append(pid = 0x07, time = i.toFloat(), value = v) }
+        val s = make(track)
+        assertEquals(4.0, s.medianaKorektyDlugoterminowej)
+        val srednia = wartosci.map { it.toDouble() }.average()
+        assertTrue(kotlin.math.abs(s.medianaKorektyDlugoterminowej!! - srednia) > 10.0)
+    }
+
+    @Test
+    fun medianaKorektyNullGdyBrakSerii0107() {
+        assertNull(make(TrackBlob()).medianaKorektyDlugoterminowej)
+        val inna = TrackBlob()
+        inna.append(pid = 0x06, time = 0f, value = 1f)
+        assertNull(make(inna).medianaKorektyDlugoterminowej)
+    }
+
     private fun make(track: TrackBlob) = SummaryCalculator.make(
         from = track,
         durationSeconds = 10.0,

@@ -22,7 +22,8 @@ data class PodsumowaniePrzejazdu(
     val maxTempKatalizatoraC: Double? = null,
     val czasDo90CSekundy: Double? = null,
     val czasPozaPasmemWPetliZamknietejSekundy: Double? = null,
-    val czasWPetliZamknietejSekundy: Double? = null
+    val czasWPetliZamknietejSekundy: Double? = null,
+    val medianaKorektyDlugoterminowej: Double? = null
 )
 
 object SummaryCalculator {
@@ -94,7 +95,8 @@ object SummaryCalculator {
             maxTempKatalizatoraC = maxValue(catalyst?.values),
             czasDo90CSekundy = czasPierwszej(coolant, PROG_PLYN_90_C),
             czasPozaPasmemWPetliZamknietejSekundy = czasyKorekt?.first,
-            czasWPetliZamknietejSekundy = czasyKorekt?.second
+            czasWPetliZamknietejSekundy = czasyKorekt?.second,
+            medianaKorektyDlugoterminowej = mediana(ltft?.values)
         )
     }
 
@@ -192,5 +194,17 @@ object SummaryCalculator {
     private fun average(values: List<Float>?): Double? {
         if (values.isNullOrEmpty()) return null
         return values.sumOf { it.toDouble() } / values.size
+    }
+
+    /** Mediana, nie średnia — §10.4 warstwy kontekstowej. */
+    fun mediana(values: List<Float>?): Double? {
+        if (values.isNullOrEmpty()) return null
+        val posortowane = values.sorted()
+        val n = posortowane.size
+        return if (n % 2 == 1) {
+            posortowane[n / 2].toDouble()
+        } else {
+            (posortowane[n / 2 - 1].toDouble() + posortowane[n / 2].toDouble()) / 2.0
+        }
     }
 }

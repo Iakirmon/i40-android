@@ -158,6 +158,7 @@ object PodsumowanieJson {
             p.czasPozaPasmemWPetliZamknietejSekundy ?: JSONObject.NULL
         )
         o.put("czasWPetliZamknietejSekundy", p.czasWPetliZamknietejSekundy ?: JSONObject.NULL)
+        o.put("medianaKorektyDlugoterminowej", p.medianaKorektyDlugoterminowej ?: JSONObject.NULL)
         return o.toString().toByteArray(Charsets.UTF_8)
     }
 
@@ -182,7 +183,8 @@ object PodsumowanieJson {
             maxTempKatalizatoraC = o.optionalDouble("maxTempKatalizatoraC"),
             czasDo90CSekundy = o.optionalDouble("czasDo90CSekundy"),
             czasPozaPasmemWPetliZamknietejSekundy = o.optionalDouble("czasPozaPasmemWPetliZamknietejSekundy"),
-            czasWPetliZamknietejSekundy = o.optionalDouble("czasWPetliZamknietejSekundy")
+            czasWPetliZamknietejSekundy = o.optionalDouble("czasWPetliZamknietejSekundy"),
+            medianaKorektyDlugoterminowej = o.optionalDouble("medianaKorektyDlugoterminowej")
         )
     }
 
