@@ -80,10 +80,16 @@ data class Raport(
             return Werdykt.Ok
         }
 
+    fun odczyt(pid: Int): Double? = odczyty.firstOrNull { it.pid == pid && it.dostepny }?.wartosc
+
+    /** Ten sam stan co [PasmaOdniesienia.jalowyRozgrzany] — bez drugiej kopii progów. */
+    val jalowyRozgrzany: Boolean
+        get() = PasmaOdniesienia.jalowyRozgrzany(odczyt(0x0C), odczyt(0x0D), odczyt(0x05), odczyt(0x1F))
+
     /** Wejście do [RuleEngine] z pól migawki. Napięcie: PID `0142`, inaczej pin 16. */
     val wejscieRegul: RuleInput
         get() {
-            fun numeric(pid: Int): Double? = odczyty.firstOrNull { it.pid == pid && it.dostepny }?.wartosc
+            fun numeric(pid: Int): Double? = odczyt(pid)
             return RuleInput(
                 milOn = gotowosc?.milOn,
                 storedCodeCount = kodyZapisane.size,

@@ -23,9 +23,12 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import pl.i40.android.R
 import pl.i40.android.checkup.CheckupOrchestrator
+import pl.i40.android.checkup.PorownaniePrzegladow
 import pl.i40.android.checkup.Raport
+import pl.i40.android.checkup.RaportJson
 import pl.i40.android.checkup.SlownikDtc
 import pl.i40.android.checkup.ZrodloRaportu
+import pl.i40.android.storage.DriveSessionDao
 import pl.i40.android.transport.MockI40Script
 import pl.i40.android.transport.MockTransport
 
@@ -36,6 +39,7 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf("Na postoju — pełny przegląd na atrapie.") }
     var raport by remember { mutableStateOf<Raport?>(null) }
+    var zmiany by remember { mutableStateOf<String?>(null) }
     val slownik = remember {
         val json = context.resources.openRawResource(R.raw.dtc_dictionary).bufferedReader().use { it.readText() }
         SlownikDtc.zJson(json)
@@ -62,6 +66,26 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
                         zrodlo = ZrodloRaportu.Atrapa,
                         scope = scope
                     )
+                    val id = java.util.UUID.randomUUID().toString()
+                    val dao = DriveSessionDao(context)
+                    val vin = wynik.pojazd.vin
+                    val poprzedni = if (vin != null) dao.poprzedniPrzeglad(vin, id) else null
+                    zmiany = if (poprzedni != null) {
+                        val pop = RaportJson.decode(poprzedni.raportBlob)
+                        FormatZmianPrzegladu.blok(
+                            PorownaniePrzegladow.porownaj(wynik, pop),
+                            poprzedni.kiedyMs
+                        )
+                    } else {
+                        null
+                    }
+                    dao.zapiszPrzeglad(
+                        id,
+                        wynik.startMs,
+                        vin,
+                        PorownaniePrzegladow.stanZRaportu(wynik),
+                        RaportJson.encode(wynik)
+                    )
                     raport = wynik
                     status = wynik.werdykt.tytul
                 }
@@ -78,6 +102,14 @@ fun CheckupScreen(wRuchu: Boolean, modifier: Modifier = Modifier) {
                 text = r.pojazd.vin ?: FormatPomiaru.NIEDOSTEPNE,
                 style = TextStyle(color = kolory.tekstDrugi, fontSize = 14.sp)
             )
+            val blokZmian = zmiany
+            if (blokZmian != null) {
+                BasicText(
+                    text = blokZmian,
+                    modifier = Modifier.padding(top = 12.dp),
+                    style = TextStyle(color = kolory.tekst, fontSize = 14.sp)
+                )
+            }
             KartaGdi(FormatPrzegladu.kartaGdi(r))
             KartaKatalizator(FormatPrzegladu.kartaKatalizator(r))
             KartaOdczytow(r)

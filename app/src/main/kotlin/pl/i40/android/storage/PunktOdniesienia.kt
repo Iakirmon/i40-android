@@ -48,3 +48,11 @@ object OdczytyPunktuJson {
         return out
     }
 }
+
+data class WpisPrzegladu(
+    val id: String,
+    val kiedyMs: Long,
+    val vin: String?,
+    val stan: String?,
+    val raportBlob: ByteArray
+)

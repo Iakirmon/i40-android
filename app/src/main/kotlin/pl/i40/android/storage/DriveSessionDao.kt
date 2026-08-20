@@ -7,7 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * SQLite — `przejazd` (v1) i `punkt_odniesienia` (v2, §8.1 warstwy odniesienia).
+ * SQLite — `przejazd` (v1), `punkt_odniesienia` (v2), `przeglad` (v3).
  * Osobne `if` w [onUpgrade], nigdy łańcuch if/else — H1 dołoży kolejny stopień.
  */
 class DriveSessionDao(context: Context) :
@@ -20,11 +20,15 @@ class DriveSessionDao(context: Context) :
         db.execSQL("CREATE INDEX idx_przejazd_poczatek ON przejazd (poczatek)")
         db.execSQL("CREATE INDEX idx_przejazd_status ON przejazd (status)")
         utworzTabelePunktow(db)
+        utworzTabelePrzegladow(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             utworzTabelePunktow(db)
+        }
+        if (oldVersion < 3) {
+            utworzTabelePrzegladow(db)
         }
     }
 
@@ -56,6 +60,30 @@ class DriveSessionDao(context: Context) :
         }
         return out
     }
+
+    fun zapiszPrzeglad(id: String, kiedyMs: Long, vin: String?, stan: String?, raportBlob: ByteArray) {
+        writableDatabase.execSQL(
+            """
+            INSERT INTO przeglad (id, kiedy, vin, stan, raport)
+            VALUES (?, ?, ?, ?, ?)
+            """.trimIndent(),
+            arrayOf(id, kiedyMs, vin, stan, raportBlob)
+        )
+    }
+
+    fun przegladyDlaVin(vin: String): List<WpisPrzegladu> {
+        val out = mutableListOf<WpisPrzegladu>()
+        readableDatabase.rawQuery(
+            "SELECT * FROM przeglad WHERE vin = ? ORDER BY kiedy ASC",
+            arrayOf(vin)
+        ).use { c ->
+            while (c.moveToNext()) out.add(przegladZKursora(c))
+        }
+        return out
+    }
+
+    fun poprzedniPrzeglad(vin: String, pozaId: String): WpisPrzegladu? =
+        przegladyDlaVin(vin).filter { it.id != pozaId }.maxByOrNull { it.kiedyMs }
 
     override fun wstaw(przejazd: Przejazd) {
         writableDatabase.execSQL(
@@ -160,9 +188,25 @@ class DriveSessionDao(context: Context) :
         odczyty = OdczytyPunktuJson.decode(c.getBlob(c.getColumnIndexOrThrow("odczyty")))
     )
 
+    private fun przegladZKursora(c: android.database.Cursor): WpisPrzegladu = WpisPrzegladu(
+        id = c.getString(c.getColumnIndexOrThrow("id")),
+        kiedyMs = c.getLong(c.getColumnIndexOrThrow("kiedy")),
+        vin = if (c.isNull(c.getColumnIndexOrThrow("vin"))) {
+            null
+        } else {
+            c.getString(c.getColumnIndexOrThrow("vin"))
+        },
+        stan = if (c.isNull(c.getColumnIndexOrThrow("stan"))) {
+            null
+        } else {
+            c.getString(c.getColumnIndexOrThrow("stan"))
+        },
+        raportBlob = c.getBlob(c.getColumnIndexOrThrow("raport"))
+    )
+
     companion object {
         const val NAZWA_BAZY = "i40.db"
-        const val WERSJA_SCHEMATU = 2
+        const val WERSJA_SCHEMATU = 3
         const val SQL_CREATE = """
             CREATE TABLE przejazd (
                 id TEXT PRIMARY KEY,
@@ -192,6 +236,22 @@ class DriveSessionDao(context: Context) :
         private fun utworzTabelePunktow(db: SQLiteDatabase) {
             db.execSQL(SQL_CREATE_PUNKT)
             db.execSQL("CREATE INDEX idx_punkt_vin_kiedy ON punkt_odniesienia (vin, kiedy)")
+        }
+
+        /** Schemat z §8.2 warstwy odniesienia. */
+        const val SQL_CREATE_PRZEGLAD = """
+            CREATE TABLE przeglad (
+                id      TEXT PRIMARY KEY,
+                kiedy   INTEGER NOT NULL,
+                vin     TEXT,
+                stan    TEXT,
+                raport  BLOB NOT NULL
+            )
+            """
+
+        private fun utworzTabelePrzegladow(db: SQLiteDatabase) {
+            db.execSQL(SQL_CREATE_PRZEGLAD)
+            db.execSQL("CREATE INDEX idx_przeglad_vin_kiedy ON przeglad (vin, kiedy)")
         }
     }
 }
