@@ -41,9 +41,10 @@ fun I40App(
     onChroniony: (String, Boolean) -> Unit = { _, _ -> },
     punkty: List<PunktOdniesienia> = emptyList()
 ) {
-    val kolory = LocalI40Kolory.current
     var zakladka by remember { mutableStateOf(Zakladka.Nagrywanie) }
     var nawigacjaSlownika by remember { mutableStateOf(StanNawigacjiSlownika()) }
+    var ustawieniaWygladu by remember { mutableStateOf(StanUstawienWygladu()) }
+    val motyw = ustawieniaWygladu.motyw
     val nawigacja = BlokadaPredkosci.pozwala(
         InterakcjaZywa.Nawigacja,
         wRuchu = migawka.wRuchu,
@@ -59,7 +60,8 @@ fun I40App(
         WejscieSlownika.idDlaPid(pid)?.let { otworzHaslo(it) }
     }
 
-    I40Theme {
+    I40Theme(motyw = motyw) {
+        val kolory = LocalI40Kolory.current
         Box(Modifier.fillMaxSize().background(kolory.tlo)) {
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().background(kolory.powierzchniaPodniesiona)) {
@@ -79,6 +81,33 @@ fun I40App(
                                     else -> kolory.tekstWyciszony
                                 },
                                 fontSize = 16.sp
+                            )
+                        )
+                    }
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    for (w in WyborMotywu.entries) {
+                        val aktywny = ustawieniaWygladu.wyborMotywu == w
+                        BasicText(
+                            text = when (w) {
+                                WyborMotywu.Noc -> "NOC"
+                                WyborMotywu.Dzien -> "DZIEŃ"
+                                WyborMotywu.Automatycznie -> "AUTO"
+                            },
+                            modifier = Modifier
+                                .clickable {
+                                    ustawieniaWygladu = ustawieniaWygladu.zWyboorem(w)
+                                }
+                                .padding(8.dp),
+                            style = TextStyle(
+                                color = if (aktywny) kolory.akcent else kolory.tekstWyciszony,
+                                fontSize = SkalaI40.ETYKIETA_SP.sp,
+                                fontFamily = I40CzcionkaTekstu
                             )
                         )
                     }

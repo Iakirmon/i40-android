@@ -255,7 +255,15 @@ private fun PasekStanu(migawka: MigawkaZywego, onStop: () -> Unit) {
         Box(Modifier.weight(1f))
         BasicText(
             text = "Zatrzymaj",
-            modifier = Modifier.clickable(enabled = stopOn, onClick = onStop).padding(8.dp),
+            modifier = Modifier
+                .clickable(enabled = stopOn, onClick = onStop)
+                .padding(SkalaI40.ODSTEP_CELI_DP.dp)
+                .then(
+                    Modifier.padding(
+                        horizontal = ((SkalaI40.CEL_W_RUCHU_DP - 16) / 2).dp,
+                        vertical = ((SkalaI40.CEL_W_RUCHU_DP - 16) / 2).dp
+                    )
+                ),
             style = TextStyle(color = if (stopOn) kolory.akcent else kolory.tekstWyciszony, fontSize = 16.sp)
         )
     }
