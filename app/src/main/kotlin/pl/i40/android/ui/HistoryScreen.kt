@@ -57,6 +57,8 @@ fun HistoryScreen(
     var tryb by remember { mutableStateOf(TrybZaznaczania()) }
     var porzadki by remember { mutableStateOf(false) }
     var porownanie by remember { mutableStateOf<Przejazd?>(null) }
+    var odPoczatku by remember { mutableStateOf(false) }
+    var filtr by remember { mutableStateOf(FiltrHistorii()) }
 
     val potwierdzany = doPotwierdzenia
     if (potwierdzany != null) {
@@ -135,10 +137,11 @@ fun HistoryScreen(
         return
     }
 
-    val dniSesji = przejazdy.map { SiatkaMiesiaca.poczatekDnia(it.poczatekMs, cal) }.toSet()
+    val widoczne = filtr.zastosuj(przejazdy)
+    val dniSesji = widoczne.map { SiatkaMiesiaca.poczatekDnia(it.poczatekMs, cal) }.toSet()
     val cells = SiatkaMiesiaca.komorki(miesiac, dniSesji, cal)
     val dniTygodnia = SiatkaMiesiaca.skrotyDni(cal)
-    val listaDnia = dzien?.let { SiatkaMiesiaca.sesjeDnia(it, przejazdy, cal) }.orEmpty()
+    val listaDnia = dzien?.let { SiatkaMiesiaca.sesjeDnia(it, widoczne, cal) }.orEmpty()
 
     Column(modifier.fillMaxSize().background(kolory.tlo).padding(12.dp).verticalScroll(rememberScrollState())) {
         if (tryb.aktywny) {
@@ -183,15 +186,45 @@ fun HistoryScreen(
                     }.padding(12.dp),
                     style = TextStyle(color = kolory.tekst, fontSize = 20.sp)
                 )
+                val znacznik = if (odPoczatku) "od początku ✓" else "od początku"
+                BasicText(
+                    znacznik,
+                    modifier = Modifier.clickable { odPoczatku = !odPoczatku }.padding(8.dp),
+                    style = TextStyle(color = if (odPoczatku) kolory.akcent else kolory.tekstDrugi, fontSize = 12.sp)
+                )
             }
         }
-        val karta = FormatKartyMiesiaca.zPrzejazdow(przejazdy, miesiac, cal)
-        KartaMiesiacaUi(karta)
-        BasicText(
-            "Porządki",
-            modifier = Modifier.clickable { porzadki = true }.padding(8.dp),
-            style = TextStyle(color = kolory.akcent, fontSize = 14.sp)
-        )
+        if (odPoczatku) {
+            val kartaCalej = FormatKartyOdPoczatku.zPrzejazdow(przejazdy, cal)
+            BasicText("OD POCZĄTKU", style = TextStyle(color = kolory.akcent, fontSize = 13.sp))
+            for (w in kartaCalej.wiersze) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    BasicText(
+                        w.etykieta,
+                        modifier = Modifier.weight(1.4f),
+                        style = TextStyle(color = kolory.tekstDrugi, fontSize = 12.sp)
+                    )
+                    BasicText(
+                        w.wartosc,
+                        modifier = Modifier.weight(1f),
+                        style = TextStyle(color = kolory.tekst, fontSize = 12.sp, fontFamily = I40CzcionkaWartosci)
+                    )
+                }
+            }
+            BasicText(
+                "Porządki",
+                modifier = Modifier.clickable { porzadki = true }.padding(8.dp),
+                style = TextStyle(color = kolory.akcent, fontSize = 14.sp)
+            )
+        } else {
+            val karta = FormatKartyMiesiaca.zPrzejazdow(przejazdy, miesiac, cal)
+            KartaMiesiacaUi(karta)
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            ZnacznikFiltra("z kodami", filtr.zKodami) { filtr = filtr.copy(zKodami = !filtr.zKodami) }
+            ZnacznikFiltra("przerwane", filtr.przerwane) { filtr = filtr.copy(przerwane = !filtr.przerwane) }
+            ZnacznikFiltra("chronione", filtr.chronione) { filtr = filtr.copy(chronione = !filtr.chronione) }
+        }
         Row(Modifier.fillMaxWidth()) {
             for (s in dniTygodnia) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -233,13 +266,16 @@ fun HistoryScreen(
                 repeat(7 - row.size) { Box(Modifier.weight(1f)) }
             }
         }
-        if (dzien == null) {
+        if (filtr.aktywny && widoczne.isEmpty()) {
+            BasicText(FiltrHistorii.KOMUNIKAT_PUSTY, style = TextStyle(color = kolory.tekstWyciszony, fontSize = 13.sp))
+        } else if (dzien == null) {
             BasicText(
                 "Dotknij dnia z kropką, żeby zobaczyć przejazdy.",
                 style = TextStyle(color = kolory.tekstWyciszony, fontSize = 13.sp)
             )
         } else if (listaDnia.isEmpty()) {
-            BasicText("Brak przejazdów tego dnia.", style = TextStyle(color = kolory.tekstWyciszony, fontSize = 13.sp))
+            val msg = if (filtr.aktywny) FiltrHistorii.KOMUNIKAT_PUSTY else "Brak przejazdów tego dnia."
+            BasicText(msg, style = TextStyle(color = kolory.tekstWyciszony, fontSize = 13.sp))
         } else {
             for (p in listaDnia) {
                 WierszPrzejazdu(
@@ -388,4 +424,14 @@ internal fun liczbaPunktowPrzejazdu(p: Przejazd, punkty: List<PunktOdniesienia>)
     val vin = p.vin ?: return 0
     val koniec = p.koniecMs ?: Long.MAX_VALUE
     return punkty.count { it.vin == vin && it.kiedyMs >= p.poczatekMs && it.kiedyMs <= koniec }
+}
+
+@Composable
+private fun ZnacznikFiltra(etykieta: String, wlaczony: Boolean, onClick: () -> Unit) {
+    val kolory = LocalI40Kolory.current
+    BasicText(
+        etykieta,
+        modifier = Modifier.clickable(onClick = onClick).padding(8.dp),
+        style = TextStyle(color = if (wlaczony) kolory.akcent else kolory.tekstWyciszony, fontSize = 13.sp)
+    )
 }
