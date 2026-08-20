@@ -24,12 +24,11 @@ class DriveSessionDao(context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 2) {
-            utworzTabelePunktow(db)
-        }
-        if (oldVersion < 3) {
-            utworzTabelePrzegladow(db)
-        }
+        MigracjaSchematu.onUpgrade(db, oldVersion)
+    }
+
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        MigracjaSchematu.onDowngrade(oldVersion, newVersion)
     }
 
     override fun zapisz(punkt: PunktOdniesienia) {
@@ -88,8 +87,8 @@ class DriveSessionDao(context: Context) :
     override fun wstaw(przejazd: Przejazd) {
         writableDatabase.execSQL(
             """
-            INSERT INTO przejazd (id, poczatek, koniec, status, vin, notatka, podsumowanie, przebieg)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO przejazd (id, poczatek, koniec, status, vin, notatka, podsumowanie, przebieg, chroniony)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent(),
             arrayOf(
                 przejazd.id,
@@ -99,7 +98,8 @@ class DriveSessionDao(context: Context) :
                 przejazd.vin,
                 przejazd.notatka,
                 PodsumowanieJson.encode(przejazd.podsumowanie),
-                przejazd.przebieg.encode()
+                przejazd.przebieg.encode(),
+                if (przejazd.chroniony) 1 else 0
             )
         )
     }
@@ -174,7 +174,8 @@ class DriveSessionDao(context: Context) :
             notatka = c.getString(c.getColumnIndexOrThrow("notatka")),
             podsumowanie = PodsumowanieJson.decode(c.getBlob(c.getColumnIndexOrThrow("podsumowanie"))),
             przebieg = TrackBlob.decode(c.getBlob(c.getColumnIndexOrThrow("przebieg"))),
-            checkpointMs = koniec ?: c.getLong(c.getColumnIndexOrThrow("poczatek"))
+            checkpointMs = koniec ?: c.getLong(c.getColumnIndexOrThrow("poczatek")),
+            chroniony = c.getInt(c.getColumnIndexOrThrow("chroniony")) != 0
         )
     }
 
@@ -206,7 +207,7 @@ class DriveSessionDao(context: Context) :
 
     companion object {
         const val NAZWA_BAZY = "i40.db"
-        const val WERSJA_SCHEMATU = 3
+        const val WERSJA_SCHEMATU = MigracjaSchematu.WERSJA
         const val SQL_CREATE = """
             CREATE TABLE przejazd (
                 id TEXT PRIMARY KEY,
@@ -216,7 +217,8 @@ class DriveSessionDao(context: Context) :
                 vin TEXT,
                 notatka TEXT NOT NULL DEFAULT '',
                 podsumowanie BLOB NOT NULL,
-                przebieg BLOB NOT NULL
+                przebieg BLOB NOT NULL,
+                chroniony INTEGER NOT NULL DEFAULT 0
             )
             """
 
@@ -233,7 +235,7 @@ class DriveSessionDao(context: Context) :
             )
             """
 
-        private fun utworzTabelePunktow(db: SQLiteDatabase) {
+        internal fun utworzTabelePunktow(db: SQLiteDatabase) {
             db.execSQL(SQL_CREATE_PUNKT)
             db.execSQL("CREATE INDEX idx_punkt_vin_kiedy ON punkt_odniesienia (vin, kiedy)")
         }
@@ -249,7 +251,7 @@ class DriveSessionDao(context: Context) :
             )
             """
 
-        private fun utworzTabelePrzegladow(db: SQLiteDatabase) {
+        internal fun utworzTabelePrzegladow(db: SQLiteDatabase) {
             db.execSQL(SQL_CREATE_PRZEGLAD)
             db.execSQL("CREATE INDEX idx_przeglad_vin_kiedy ON przeglad (vin, kiedy)")
         }

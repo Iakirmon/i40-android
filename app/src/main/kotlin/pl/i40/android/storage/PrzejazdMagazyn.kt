@@ -20,7 +20,8 @@ data class Przejazd(
     val notatka: String,
     val podsumowanie: PodsumowaniePrzejazdu,
     val przebieg: TrackBlob,
-    val checkpointMs: Long
+    val checkpointMs: Long,
+    val chroniony: Boolean = false
 )
 
 interface PrzejazdMagazyn {
