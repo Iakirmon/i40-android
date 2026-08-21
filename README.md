@@ -1,66 +1,219 @@
 # i40-android
 
-Aplikacja diagnostyczna OBD-II na **radio z Androidem** w Hyundaiu i40 (2015, 2.0 GDI Nu).
+**OBD-II diagnostics that runs on the car's Android head unit — Hyundai i40 (2015, 2.0 GDI "Nu").**
+**Diagnostyka OBD-II działająca na radiu z Androidem — Hyundai i40 (2015, 2.0 GDI „Nu").**
 
-Port działającej aplikacji [`i40-check`](https://github.com/Iakirmon/ios-obd2-ble-diagnostics) z iOS.
-Powód portu jest jeden: **radio wstaje z zapłonem**, więc każdy przejazd nagrywa się sam — bez wyjmowania telefonu i bez START.
+Repo: <https://github.com/Iakirmon/i40-android> · iOS original / pierwowzór: [`i40-check`](https://github.com/Iakirmon/ios-obd2-ble-diagnostics)
 
-> Każda liczba pochodzi z pomiaru albo z nazwanego modelu. Nieudany odczyt mówi „—", nigdy „0".
+[**English**](#english) · [**Polski**](#polski) · [**Screens · Ekrany**](#screens--ekrany) · [MIT](#license--licencja)
 
 ---
 
-## Co robi — w skrócie
+## English
 
-| Na postoju / w ruchu | Co się dzieje |
+### What this is, in one paragraph
+
+An Android app that lives on the car's head unit instead of your phone. The head unit powers up with the ignition, so the app starts, connects to the ELM327 adapter and **begins logging on its own** — every trip is recorded with no phone in your hand, no cable and no START button. While you drive it shows live values; when you park it can run a full inspection; afterwards it keeps a browsable history of trips.
+
+### Why port it from iOS at all
+
+The iOS app works fine, but it needs you to pull the phone out, open it and press START. The head unit is already on. That is the entire reason for the port — **unattended recording**.
+
+### The one rule about numbers
+
+Every value is either a real measurement or an explicitly named model. Nothing is invented, nothing is rounded into existence.
+
+- a failed read shows `—`, **never `0`**
+- a modelled value (oil temperature) is prefixed with `~`
+- a value that is meaningless right now (e.g. fuel trim in open loop) shows `○`
+
+### Hardware and target
+
+| | |
 |---|---|
-| Zapłon | Usługa pierwszoplanowa łączy się z adapterem ELM327 i **sama zaczyna nagrywać** |
-| Jazda | Cztery kafle + sześć paneli na żywo (wykresy 60 s); alarmy dźwiękowe tylko przy 5 krytycznych warunkach |
-| Postój | Pełny **przegląd** (kody DTC, monitory, odczyty z normą i „poprzednio") |
-| Po jeździe | **Historia** przejazdów, porównanie, porządki, karta „od początku" |
-| Dotknięcie liczby | **Słownik** — wysuwany arkusz z wyjaśnieniem (70 haseł); w ruchu się nie otwiera |
+| Adapter | vLinker (ELM327) |
+| Car bus | ISO 15765-4 CAN, 11-bit, 500 kbit/s |
+| Screen | head unit 1280×720, landscape (PR9 / UIS7862) |
 
-Adapter: vLinker (ELM327). Auto: ISO 15765-4 CAN 11-bit 500 kbit/s.  
-Ekran docelowy: radio 1280×720 poziomo (PR9 / UIS7862).
+### How you use it
+
+**1. Turn the ignition on.** The head unit boots, a foreground service connects to the adapter and starts recording. There is nothing to tap.
+
+**2. Recording tab** (the default screen). Four tiles at the top, one of six live panels below them, and a status bar at the bottom: elapsed time, poll rate in Hz, number of requests sent, and **Stop** — active only at a standstill while recording.
+
+The four tiles are: oil temperature (model), coolant temperature, battery voltage, long-term fuel trim.
+
+The six panels, swiped sideways:
+
+| Panel | What it shows |
+|---|---|
+| `STAN` — Status | one-line verdict, or the list of out-of-band values (max 4 rows + "… and N more") |
+| `PODSTAWOWY` — Basic | RPM, engine load, ignition timing — 60-second traces |
+| `MIESZANKA` — Mixture | short and long fuel trim, EVAP purge, commanded lambda, closed/open loop state |
+| `WTRYSK GDI` — GDI injection | fuel rail pressure against load and throttle |
+| `TERMIKA` — Thermal | catalyst, coolant, oil (model), intake and ambient air |
+| `POWIETRZE` — Air | computed manifold vacuum, commanded vs. actual throttle, pedal |
+
+**3. While the car is moving.** Swiping between panels is allowed. Everything else — tabs, dictionary, inspection — is locked above 0 km/h.
+
+**4. Tap any value to open the dictionary.** At a standstill, tapping a tile, a reading row, a chart caption or a report row slides up a sheet: *Now / Normal range / Previously*, then four plain-language sections. While moving, nothing opens.
+
+**5. Inspection tab.** Standstill only. Runs a full pass and returns a verdict, GDI and catalyst cards, and a list of readings in *now / previously / normal* columns.
+
+**6. History tab.** A calendar with a dot on every day that has trips, the trip list for a chosen day, session detail, side-by-side comparison of two trips, bulk cleanup by criteria, an all-time card and filters.
+
+**7. Theme.** `NIGHT / DAY / AUTO`, night by default. Switching the theme **does not interrupt recording**.
+
+### Safety: the speed lock
+
+Above 0 km/h the app deliberately becomes almost inert — only panel swiping responds. Out-of-band values are flagged silently with `▲` / `▼`; crossing a band **does not beep**. Audible alarms fire for five critical conditions only.
+
+### Symbols used everywhere
+
+| Symbol | Meaning |
+|---|---|
+| `—` | no reading |
+| `⌀` | read failed |
+| `○` | inactive / meaningless right now (e.g. fuel trim in open loop) |
+| `~` | model, not a measurement (oil) |
+| `▲` `▼` | out of band (silent) |
+
+### Build and test
+
+```bash
+./gradlew ktlintCheck
+./gradlew lint
+./gradlew test
+```
+
+### Project status
+
+- Kotlin, Jetpack Compose, `minSdk` 31, `targetSdk` 34
+- Everything above the transport layer is pure logic, driven by a mock: `MockI40Script`, a real capture taken from the car on 2026-08-08
+- **Stage 9 — the real transport (SPP / BLE / Wi-Fi) is not written yet.** On the head unit the app currently runs on the mock transport
+- Test bar: no fewer than **153** test functions (what the iOS app has). The port is already above that
+
+### Documentation
+
+| File | Role |
+|---|---|
+| `docs/spec/2026-08-14-i40-android-design.md` | base design |
+| `docs/spec/*-{diagnostyka,kontekst,odniesienie,historia,objasnienia,wyglad}-*.md` | extension layers |
+| `docs/slownik.md` | the 70 dictionary entries — **source text, never generated** |
+| `docs/zrodla.md` | where every reference number comes from |
+| `docs/weryfikacja-*.md` | checklists for the bench and for the car |
+| `AGENTS.md`, `.cursor/rules/` | rules for AI agents |
+
+What is true **right now** (poll composition, tiles, DB version): `.cursor/rules/00-projekt.mdc` → **STAN AKTUALNY**.
 
 ---
 
-## Krok po kroku — jak z tego korzystać
+## Polski
 
-### 1. Zapłon
+### O co chodzi — jeden akapit
 
-Radio wstaje. Aplikacja (usługa pierwszoplanowa) łączy się z adapterem i wchodzi w nagrywanie. Nie trzeba nic klikać.
+Aplikacja na Androida, która siedzi w radiu samochodowym, a nie w telefonie. Radio wstaje razem z zapłonem, więc aplikacja startuje, łączy się z adapterem ELM327 i **sama zaczyna nagrywać** — każdy przejazd zapisuje się bez wyjmowania telefonu, bez kabla i bez klikania START. W trakcie jazdy pokazuje wartości na żywo, na postoju potrafi zrobić pełny przegląd, a po jeździe trzyma historię przejazdów do przeglądania.
 
-### 2. Zakładka **Nagrywanie** (domyślna)
+### Po co w ogóle port z iOS
 
-To ekran „żywy". U góry cztery kafle, pod nimi jeden z sześciu paneli (przesuw palcem w bok). Na dole pasek: czas, Hz, liczba zapytań, **Zatrzymaj** (tylko na postoju, gdy nagrywa).
+Aplikacja na iOS działa dobrze, ale wymaga wyjęcia telefonu, otwarcia i naciśnięcia START. Radio i tak już chodzi. To jest cały powód portu — **nagrywanie bez udziału kierowcy**.
 
-### 3. Panele w ruchu
+### Jedna zasada o liczbach
 
-Przełączanie paneli **wolno w ruchu**. Reszta interakcji (zakładki, słownik, przegląd) jest zablokowana przy prędkości > 0.
+Każda wartość to albo prawdziwy pomiar, albo jawnie nazwany model. Nic nie jest zmyślone ani „zaokrąglone do sensownej liczby".
 
-### 4. Dotknięcie wartości → słownik
+- nieudany odczyt pokazuje `—`, **nigdy `0`**
+- wartość z modelu (temperatura oleju) ma przedrostek `~`
+- wartość, która teraz nic nie znaczy (np. korekta w pętli otwartej), pokazuje `○`
 
-Na postoju: kafel, wiersz odczytu, podpis wykresu, wiersz raportu → arkusz z dołu (Teraz / Norma / Poprzednio + rubryki). W ruchu: nic się nie otwiera.
+### Sprzęt i cel
 
-### 5. Zakładka **Przegląd**
+| | |
+|---|---|
+| Adapter | vLinker (ELM327) |
+| Magistrala | ISO 15765-4 CAN, 11-bit, 500 kbit/s |
+| Ekran | radio 1280×720, poziomo (PR9 / UIS7862) |
 
-Tylko na postoju. Uruchom pełny przegląd → werdykt, karty GDI / katalizator, lista odczytów z kolumnami teraz / poprzednio / norma.
+### Jak się z tego korzysta
 
-### 6. Zakładka **Historia**
+**1. Przekręć kluczyk.** Radio wstaje, usługa pierwszoplanowa łączy się z adapterem i wchodzi w nagrywanie. Nie trzeba nic klikać.
 
-Kalendarz z kropkami dni, lista przejazdów dnia, szczegóły sesji, porównanie dwóch, porządki (kasowanie według kryteriów), karta „od początku", filtry.
+**2. Zakładka Nagrywanie** (ekran domyślny). U góry cztery kafle, pod nimi jeden z sześciu paneli na żywo, na dole pasek stanu: czas, częstotliwość odpytywania w Hz, liczba wysłanych zapytań i **Zatrzymaj** — aktywny tylko na postoju podczas nagrywania.
 
-### 7. Motyw
+Cztery kafle to: temperatura oleju (model), temperatura płynu, napięcie, korekta długoterminowa.
 
-Przełącznik **NOC / DZIEŃ / AUTO** (NOC domyślny). Zmiana motywu **nie przerywa** nagrywania.
+Sześć paneli, przełączanych przesunięciem palca w bok:
+
+| Panel | Co pokazuje |
+|---|---|
+| `STAN` | jednozdaniowy werdykt albo lista wartości poza pasmem (max 4 wiersze + „… i N dalsze") |
+| `PODSTAWOWY` | obroty, obciążenie, kąt zapłonu — ślady 60-sekundowe |
+| `MIESZANKA` | korekta krótko- i długoterminowa, przedmuch kanistra, lambda zadana, pętla zamknięta/otwarta |
+| `WTRYSK GDI` | ciśnienie w szynie paliwowej wobec obciążenia i przepustnicy |
+| `TERMIKA` | katalizator, płyn, olej (model), dolot, otoczenie |
+| `POWIETRZE` | wyliczone podciśnienie, przepustnica zadana i rzeczywista, pedał |
+
+**3. W ruchu.** Wolno przełączać panele. Reszta — zakładki, słownik, przegląd — jest zablokowana przy prędkości powyżej 0.
+
+**4. Dotknięcie wartości otwiera słownik.** Na postoju dotknięcie kafla, wiersza odczytu, podpisu wykresu albo wiersza raportu wysuwa arkusz z dołu: *Teraz / Norma / Poprzednio*, a pod tym cztery rubryki napisane po ludzku. W ruchu nie otwiera się nic.
+
+**5. Zakładka Przegląd.** Tylko na postoju. Uruchamia pełne badanie i zwraca werdykt, karty GDI i katalizatora oraz listę odczytów w kolumnach *teraz / poprzednio / norma*.
+
+**6. Zakładka Historia.** Kalendarz z kropką przy każdym dniu z przejazdami, lista przejazdów wybranego dnia, szczegóły sesji, porównanie dwóch przejazdów, porządki (kasowanie według kryteriów), karta „od początku" i filtry.
+
+**7. Motyw.** `NOC / DZIEŃ / AUTO`, domyślnie noc. Zmiana motywu **nie przerywa nagrywania**.
+
+### Bezpieczeństwo: blokada prędkościowa
+
+Powyżej 0 km/h aplikacja celowo staje się prawie bezwładna — reaguje tylko na przesuwanie paneli. Wartości poza pasmem są oznaczane po cichu znakami `▲` / `▼`; wyjście poza pasmo **nie piszczy**. Alarm dźwiękowy odzywa się tylko przy pięciu warunkach krytycznych.
+
+### Znaczniki (wszędzie te same)
+
+| Znak | Znaczenie |
+|---|---|
+| `—` | brak odczytu |
+| `⌀` | odczyt nieudany |
+| `○` | nieaktywne / bez znaczenia teraz (np. korekta w pętli otwartej) |
+| `~` | model, nie pomiar (olej) |
+| `▲` `▼` | poza pasmem (bez dźwięku) |
+
+### Budowa i testy
+
+```bash
+./gradlew ktlintCheck
+./gradlew lint
+./gradlew test
+```
+
+### Stan projektu
+
+- Kotlin, Jetpack Compose, `minSdk` 31, `targetSdk` 34
+- Wszystko powyżej warstwy transportu to czysta logika napędzana atrapą: `MockI40Script`, prawdziwy zapis z auta z 2026-08-08
+- **Etap 9 — właściwy transport (SPP / BLE / Wi-Fi) jeszcze nie powstał.** Na radiu aplikacja chodzi na razie na atrapie
+- Próg testów: nie mniej niż **153** funkcje testowe (tyle ma iOS). Port jest już powyżej tego progu
+
+### Dokumentacja
+
+| Plik | Rola |
+|---|---|
+| `docs/spec/2026-08-14-i40-android-design.md` | projekt bazowy |
+| `docs/spec/*-{diagnostyka,kontekst,odniesienie,historia,objasnienia,wyglad}-*.md` | warstwy rozszerzeń |
+| `docs/slownik.md` | treść 70 haseł — **źródło, nie generować** |
+| `docs/zrodla.md` | skąd wzięła się każda liczba odniesienia |
+| `docs/weryfikacja-*.md` | checklisty na biurko i do auta |
+| `AGENTS.md`, `.cursor/rules/` | zasady dla agentów AI |
+
+Stan obowiązujący **teraz** (skład pętli, kafle, wersja bazy): `.cursor/rules/00-projekt.mdc` → **STAN AKTUALNY**.
 
 ---
 
-## Makiety widoków (tekst)
+## Screens · Ekrany
 
-Układ jak na radiu 1280×720. Motyw NOC (ciemne tło).
+Text mock-ups of the 1280×720 landscape layout, night theme. The interface itself is in Polish; the captions explain what each screen shows.
 
-### Chrome — trzy zakładki + motyw
+Makiety tekstowe układu 1280×720 poziomo, motyw nocny. Interfejs jest po polsku, podpisy tłumaczą, co widać.
+
+### Chrome — three tabs and the theme switch · trzy zakładki i przełącznik motywu
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -69,11 +222,12 @@ Układ jak na radiu 1280×720. Motyw NOC (ciemne tło).
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-W ruchu zakładki Przegląd / Historia są wyszarzane; Nagrywanie zostaje.
+`Przegląd` = Inspection, `Nagrywanie` = Recording, `Historia` = History.
 
----
+While moving, Inspection and History grey out; Recording stays.
+W ruchu Przegląd i Historia są wyszarzone, zostaje Nagrywanie.
 
-### Nagrywanie — kafle + panel Stan (pierwszy)
+### Recording — tiles and the Status panel · kafle i panel Stan
 
 ```
 ┌────────────┬────────────┬────────────┬────────────┐
@@ -87,24 +241,25 @@ W ruchu zakładki Przegląd / Historia są wyszarzane; Nagrywanie zostaje.
               wszystkie parametry w pasmach
 
               (albo lista odchyleń ▲ / ▼ —
-               max 4 wiersze + „… i N dalsze”)
+               max 4 wiersze + „… i N dalsze")
 
 ┌──────────────────────────────────────────────────┐
-│  12:34   4,0 Hz   842 zap.   ● NAGRYWA    Zatrzymaj │
+│  12:34  4,0 Hz  842 zap.  ● NAGRYWA   Zatrzymaj  │
 └──────────────────────────────────────────────────┘
 ```
 
-Olej jest **modelem** (tylda `~`), nie pomiarem. Korekta długa poza pętlą zamkniętą: `— ○`.
+Tiles, left to right: oil (modelled), coolant, voltage, long-term trim. The third row of each tile is the normal band.
 
----
+Oil is a **model** (that is the `~`), not a measurement. Long-term trim outside closed loop reads `— ○`.
+Olej to **model** (tylda `~`), nie pomiar. Korekta długa poza pętlą zamkniętą: `— ○`.
 
-### Nagrywanie — panel Podstawowy (wykresy)
+### Recording — Basic panel, live charts · panel Podstawowy, wykresy
 
 ```
 ● ● ○ ○ ○ ○  PODSTAWOWY
 
   OBROTY ────────────────────────────────  2140
-  ░░░░░░░░░░░░░░░░░/\/\/\____________░░░░   ← ślad 60 s, oś Y sztywna
+  ░░░░░░░░░░░░░░░░░/\/\/\____________░░░░   ← 60 s trace, fixed Y axis
 
   OBCIĄŻENIE ────────────────────────────  34 %
   ░░░░░░░░░░░░/‾‾\___________________░░░░
@@ -113,34 +268,34 @@ Olej jest **modelem** (tylda `~`), nie pomiarem. Korekta długa poza pętlą zam
   ░░░░░░░░░░░░░\/\___________________░░░░
 ```
 
-Linie siatki = granice pasm z `PasmaOdniesienia`, nie „okrągłe" wartości. Puste pole: linia skanująca (jedyna animacja).
+`OBROTY` = RPM, `OBCIĄŻENIE` = load, `ZAPŁON` = ignition timing.
 
----
+Grid lines are the band edges from `PasmaOdniesienia`, not round numbers. An empty field shows a scanning line — the only animation in the app.
+Linie siatki to granice pasm z `PasmaOdniesienia`, nie „okrągłe" wartości. Puste pole: linia skanująca, jedyna animacja.
 
-### Nagrywanie — Mieszanka / Wtrysk GDI / Termika / Powietrze
+### Recording — the four remaining panels · pozostałe cztery panele
 
 ```
-○ ○ ● ○ ○ ○  MIESZANKA
-  ● pętla zamknięta
+○ ○ ● ○ ○ ○  MIESZANKA                         (Mixture)
+  ● pętla zamknięta                            closed loop
   KOREKTA RAZEM  [wykres z cieniami: przedmuch / pętla otwarta]
-  KRÓTKA  +1,5 %     PRZEDMUCH.  12 %
-  DŁUGA   +2,0 %     LAMBDA ZAD. 1,000
+  KRÓTKA  +1,5 %     PRZEDMUCH.  12 %          short trim / EVAP purge
+  DŁUGA   +2,0 %     LAMBDA ZAD. 1,000         long trim / commanded lambda
 
-○ ○ ○ ● ○ ○  WTRYSK GDI
-  CIŚNIENIE SZYNY / OBCIĄŻENIE / PRZEPUSTNICA
+○ ○ ○ ● ○ ○  WTRYSK GDI                        (GDI injection)
+  CIŚNIENIE SZYNY / OBCIĄŻENIE / PRZEPUSTNICA  rail pressure / load / throttle
   max … bar przy … % obciążenia
 
-○ ○ ○ ○ ● ○  TERMIKA
-  KATALIZATOR / PŁYN / OLEJ (model)
-  DOLOT …   OTOCZ. …
+○ ○ ○ ○ ● ○  TERMIKA                           (Thermal)
+  KATALIZATOR / PŁYN / OLEJ (model)            catalyst / coolant / oil
+  DOLOT …   OTOCZ. …                           intake … ambient …
 
-○ ○ ○ ○ ○ ●  POWIETRZE
-  podciśnienie (wyliczone) / przepustnica zadana·rzecz. / pedał
+○ ○ ○ ○ ○ ●  POWIETRZE                         (Air)
+  podciśnienie (wyliczone)                     computed manifold vacuum
+  przepustnica zadana · rzeczywista / pedał    commanded · actual throttle / pedal
 ```
 
----
-
-### Słownik (arkusz z dołu)
+### Dictionary — the sheet that slides up · słownik, arkusz z dołu
 
 ```
 ┌────────────────────────────────────────────┐
@@ -163,11 +318,12 @@ Linie siatki = granice pasm z `PasmaOdniesienia`, nie „okrągłe" wartości. P
 └────────────────────────────────────────────┘
 ```
 
+The four sections are: *what it is · why you would look at it · what it means when it leaves the band · what it does **not** tell you*.
+
+Entry text is **not generated** — it is carried over sentence for sentence from `docs/slownik.md` (70 entries).
 Treść haseł **nie jest generowana** — przeniesiona co do zdania z `docs/slownik.md` (70 haseł).
 
----
-
-### Przegląd
+### Inspection · Przegląd
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -190,11 +346,12 @@ Treść haseł **nie jest generowana** — przeniesiona co do zdania z `docs/slo
 └──────────────────────────────────────────────┘
 ```
 
-W ruchu: przycisk nieaktywny + komunikat o blokadzie prędkościowej.
+The verdict is one of *Wszystko OK / Uwaga / Usterka* — all clear, warning, fault. Up to 33 reading rows.
 
----
+While moving the button is disabled and the speed-lock message is shown instead.
+W ruchu przycisk jest nieaktywny, z komunikatem o blokadzie prędkościowej.
 
-### Historia — kalendarz i dzień
+### History — calendar and one day · Historia, kalendarz i dzień
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -212,55 +369,13 @@ W ruchu: przycisk nieaktywny + komunikat o blokadzie prędkościowej.
 └──────────────────────────────────────────────┘
 ```
 
-Gest w bok na wierszu → okno potwierdzenia kasowania (bez cofnięcia). `w_toku` nie kasuje się.
+`Porządki` = cleanup, `Filtr` = filter, `OD POCZĄTKU` = all-time, `🔒` = pinned and protected from cleanup.
+
+Swiping a row sideways asks for delete confirmation — there is no undo. A session still in progress (`w_toku`) cannot be deleted.
+Gest w bok na wierszu otwiera okno potwierdzenia kasowania, bez cofnięcia. Sesja `w_toku` nie kasuje się.
 
 ---
 
-### Znaczniki (wszędzie)
-
-| Znak | Znaczenie |
-|---|---|
-| `—` | brak odczytu |
-| `⌀` | odczyt nieudany |
-| `○` | nieaktywne / nieważne teraz (np. korekta w pętli otwartej) |
-| `~` | model, nie pomiar (olej) |
-| `▲` `▼` | poza pasmem (bez dźwięku) |
-
-Alarm dźwiękowy tylko przy pięciu warunkach krytycznych — przekroczenie pasma **nie** piszczy.
-
----
-
-## Budowa i testy
-
-```bash
-./gradlew ktlintCheck
-./gradlew lint
-./gradlew test
-```
-
-- Kotlin, `minSdk` 31, `targetSdk` 34, Jetpack Compose  
-- Powyżej transportu: czysta logika + atrapa (`MockI40Script` — zapis z auta 2026-08-08)  
-- **Etap 9** (SPP / BLE / Wi-Fi) — jeszcze do zrobienia; na radiu na razie transport atrapy  
-
-Cel testów: nie mniej niż **153** funkcji (tyle ma iOS). Port jest już powyżej tego progu.
-
----
-
-## Dokumentacja projektu
-
-| Plik | Rola |
-|---|---|
-| `docs/spec/2026-08-14-i40-android-design.md` | projekt bazowy |
-| `docs/spec/*-diagnostyka|kontekst|odniesienie|historia|objasnienia|wyglad-*.md` | warstwy rozszerzeń |
-| `docs/slownik.md` | treść 70 haseł (źródło, nie generować) |
-| `docs/zrodla.md` | bibliografia liczb |
-| `docs/weryfikacja-*.md` | checklisty na radio / w aucie |
-| `AGENTS.md` / `.cursor/rules/` | zasady dla agentów |
-
-Stan obowiązujący „teraz" (skład pętli, kafle, wersja bazy): `.cursor/rules/00-projekt.mdc` → **STAN AKTUALNY**.
-
----
-
-## Licencja
+## License · Licencja
 
 MIT.
