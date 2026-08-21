@@ -1,4 +1,4 @@
-# i40-android
+# headunit-obd2-logger
 
 **OBD-II diagnostics that runs on the car's Android head unit — Hyundai i40 (2015, 2.0 GDI "Nu").**
 **Diagnostyka OBD-II działająca na radiu z Androidem — Hyundai i40 (2015, 2.0 GDI „Nu").**
